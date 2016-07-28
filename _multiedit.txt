@@ -72,6 +72,7 @@ cmd.map = {
            "hive":                             Key("hyphen"),
            "quote":                            Key("quote"),
            "percent":                          Key("percent"),
+           "cot":                              Key("comma"),
            "plus":                             Key("plus"),
            "(equal | equals)":                 Key("equal"),
 
@@ -158,11 +159,13 @@ cmd.map = {
           , "mock": K("cs-s") 
           , "click": Mouse("left")
           , "fit": Mouse("left")
+          , "fik": Mouse("left") + Mouse("left")
           , "rit": Mouse("right")
 
           ## common programming words
           , "int": T("int")
           , "hash-include" : T("#include \"")
+          , "cocoa" : T("cocos2d-x")
 
           ,
 
@@ -192,7 +195,7 @@ cmd.map = {
            "(Uni | Umm)":                      Key('u'),
            "Van":                              Key('v'),
            "Wes":                              Key('w'),
-           "Xanth":                            Key('x'),
+           "Xanth | Zan":                            Key('x'),
            "Yaa":                              Key('y'),
            "(Zul | Zulu)":                     Key('z'),
 
