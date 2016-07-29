@@ -82,8 +82,8 @@ cmd.map = {
            "sna-down":                         Key("down, home"), # go to beg of next line
            "dowl":                             Key("down, end"), # go to end of next line
 
-           "dar":                              release + Key("del"), # delete forward
-           "[<n>] dar":                        release + Key("del:%(n)d"), # delete forward
+           #"dar":                              release + Key("del"), # delete forward
+           "[<n>] (dar | rook)":               release + Key("del:%(n)d"), # delete forward
            "[<n>] chook":                      release + Key("backspace:%(n)d"), # delete forward
 
            "bard":                             release + Key("c-left"),                   # go to previous word
@@ -204,16 +204,10 @@ cmd.map = {
            "Yaa":                              Key('y'),
            "(Zul | Zulu)":                     Key('z'),
 
-           "zero":                             Key('0'),
-           "one":                              Key('1'),
-           "two":                              Key('2'),
-           "three":                            Key('3'),
-           "four":                             Key('4'),
-           "five":                             Key('5'),
-           "six":                              Key('6'),
-           "seven":                            Key('7'),
-           "eight":                            Key('8'),
-           "nine":                             Key('9'),
+           "[<n>] nut":                        release + Key("%(n)d"),
+           "[<n>] float":                      release + Key("%(n)d") + T(".0f"),
+           "zero-nut":                         release + Key('0'),
+           "zero-float":                       release + Key('0') + T(".0f"),
 
            # Already part of DNS 
            # "slash"                             /
