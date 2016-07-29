@@ -83,6 +83,9 @@ cmd.map = {
            "dowl":                             Key("down, end"), # go to end of next line
 
            "dar":                              release + Key("del"), # delete forward
+           "[<n>] dar":                        release + Key("del:%(n)d"), # delete forward
+           "[<n>] chook":                      release + Key("backspace:%(n)d"), # delete forward
+
            "bard":                             release + Key("c-left"),                   # go to previous word
            "nord":                             release + Key("c-right, c-right, c-left"), # go to next word
            
@@ -108,6 +111,7 @@ cmd.map = {
           , "star-equal": Text(" *= ")
           , "minus-minus": Text("--")
           , "plus-plus": Text("++")
+          , "equal": Text(" = ")
           , "double-equal": Text(" == ")
           , "(not-equal | nequal)": Text(" != ")
           , "logical-and": Text(" && ")
@@ -164,6 +168,7 @@ cmd.map = {
 
           ## common programming words
           , "int": T("int")
+          , "Vek": T("Vec2")
           , "hash-include" : T("#include \"")
           , "cocoa" : T("cocos2d-x")
 
@@ -195,10 +200,20 @@ cmd.map = {
            "(Uni | Umm)":                      Key('u'),
            "Van":                              Key('v'),
            "Wes":                              Key('w'),
-           "Xanth | Zan":                            Key('x'),
+           "Xanth | Zan":                      Key('x'),
            "Yaa":                              Key('y'),
            "(Zul | Zulu)":                     Key('z'),
 
+           "zero":                             Key('0'),
+           "one":                              Key('1'),
+           "two":                              Key('2'),
+           "three":                            Key('3'),
+           "four":                             Key('4'),
+           "five":                             Key('5'),
+           "six":                              Key('6'),
+           "seven":                            Key('7'),
+           "eight":                            Key('8'),
+           "nine":                             Key('9'),
 
            # Already part of DNS 
            # "slash"                             /
