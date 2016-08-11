@@ -68,11 +68,12 @@ cmd.map = {
            "mimic <text>":                     release + Mimic(extra="text"),
 
            "[<n>] slap":                       release + Key("enter:%(n)d"),
+           "cot":                              release + Key("c-c"),
 
            "hive":                             Key("hyphen"),
            "quote":                            Key("quote"),
            "percent":                          Key("percent"),
-           "cot":                              Key("comma"),
+           "coat":                             Key("comma"),
            "plus":                             Key("plus"),
            "(equal | equals)":                 Key("equal"),
 
@@ -130,7 +131,7 @@ cmd.map = {
           , "line [<n>]": K("c-g") + T("%(n)d\n") + K("enter")
           , "find": K("c-f")
           , "replace": K("c-h")
-          , "jump-def": K("f12")
+          #, "jump-def": K("f12")
           , "jump-dec": K("c-f12")
           , "fort": K("c-k,c-f")
           , "add-to-header": R + Key("c-e, u, end, lparen, rparen, c-c, csa-up, c-end, up, up, up, end, enter, c-v, up, home, tab, c-right, cs-right, cs-right, del, end") +  T(";") + K("down,cs-l")
@@ -138,8 +139,6 @@ cmd.map = {
           , "pot": T("->")
           , "fex": K("f3")
           , "bex": K("s-f3")
-          , "jump-def": K("f12")
-          , "jump-dec": K("c-f12")
           , "nulp": T("nullptr")
           , "comp": K("c-space")
 
@@ -168,6 +167,8 @@ cmd.map = {
 
           ## common programming words
           , "int": T("int")
+          , "float": T("float")
+          , "bool": T("bool")
           , "Vek": T("Vec2")
           , "hash-include" : T("#include \"")
           , "cocoa" : T("cocos2d-x")
