@@ -170,6 +170,7 @@ cmd.map = {
           , "float": T("float")
           , "bool": T("bool")
           , "Vek": T("Vec2")
+          , "bang": T("!")
           , "hash-include" : T("#include \"")
           , "cocoa" : T("cocos2d-x")
 
