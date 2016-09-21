@@ -69,6 +69,7 @@ cmd.map = {
 
            "[<n>] slap":                       release + Key("enter:%(n)d"),
            "cot":                              release + Key("c-c"),
+           "pat":                              release + Key("c-v"),
 
            "hive":                             Key("hyphen"),
            "quote":                            Key("quote"),
