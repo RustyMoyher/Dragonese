@@ -126,6 +126,8 @@ cmd.map = {
           # Visual Studio specific
           , "prep": K("f6")
           , "run": K("f5")
+          , "rerun": K("cs-f5")
+          , "stop-run": K("s-f5")
           , "rat": K("c-f6")
           , "lat": K("cs-f6")
           , "swit": K("csa-up")
@@ -174,6 +176,7 @@ cmd.map = {
           , "bang": T("!")
           , "hash-include" : T("#include \"")
           , "cocoa" : T("cocos2d-x")
+          , "cocos" : T("cocos2d-x")
 
           ,
 
