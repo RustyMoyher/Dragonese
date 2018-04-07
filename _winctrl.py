@@ -46,6 +46,8 @@ Usage examples
 #import pkg_resources
 #pkg_resources.require("dragonfly >= 0.6.5beta1.dev-r76")
 
+print 'loading _winctrl.py'
+
 import time
 from dragonfly import (Grammar, Alternative, RuleRef, DictListRef,
                        Dictation, Compound, Integer, Rule, CompoundRule,
@@ -83,13 +85,12 @@ config.settings.grid       = Item(10, doc="The number of grid divisions a monito
 config.settings.defaults   = Item(
                                     {
                                         "fire": ("firefox", None),
-                                        "editor": ("Microsoft Visual Studio", None),
+                                        "edit": ("Microsoft Visual Studio", None),
                                         "Visual Studio": ("Microsoft Visual Studio", None),
                                         "github": ("Github Desktop", None),
-                                        "git": ("Github Desktop", None),
-                                        "notes": ("Sublime Text", None),
+                                        "note": ("Sublime Text", None),
                                         "Sublime": ("Sublime Text", None),
-                                        "chrome": ("chrome", None),
+                                        "chrome": ("chrome", None)
 
                                     }, doc="Default window names.  Maps spoken-forms to (executable, title) pairs.",
                                 )
