@@ -38,7 +38,7 @@ cmd.map = {
            "down [<n>]":                       Key("down:%(n)d"),
            "left [<n>]":                       Key("left:%(n)d"),
            "right [<n>]":                      Key("right:%(n)d"),
-           "pup [<n>]": 	                   Key("pgup:%(n)d"),
+           "puck [<n>]": 	                   Key("pgup:%(n)d"),
            "dock [<n>]":    		           Key("pgdown:%(n)d"),
            "page up [<n>]":                    Key("pgup:%(n)d"),
            "page down [<n>]":                  Key("pgdown:%(n)d"),
