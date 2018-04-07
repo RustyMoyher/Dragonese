@@ -1,6 +1,5 @@
 #
 # This is a config file for Dragonfly's _multiedit.py command-module.
-#  To use this config, you must rename this file to _multiedit.txt and
 #  place it in the same directory as the _multiedit.py file.
 #
 
@@ -11,10 +10,11 @@ from dragonfly import *
 
 #---------------------------------------------------------------------------
 # Here we define the release action which releases all
-#  modifier-keys used within this grammar.  It is defined here
 #  because this functionality is used in many different places.
+#  modifier-keys used within this grammar.  It is defined herewn at all.
 #  Note that it is harmless to release ("...:up") a key multiple
-#  times or when that key is not held down at all.
+#  To use this config, you must rename this file to _multiedit.txt and
+#  times or when that key is not held do
 
 print 'loading _multiedit module'
 
@@ -38,6 +38,8 @@ cmd.map = {
            "down [<n>]":                       Key("down:%(n)d"),
            "left [<n>]":                       Key("left:%(n)d"),
            "right [<n>]":                      Key("right:%(n)d"),
+           "pup [<n>]": 	                   Key("pgup:%(n)d"),
+           "dock [<n>]":    		           Key("pgdown:%(n)d"),
            "page up [<n>]":                    Key("pgup:%(n)d"),
            "page down [<n>]":                  Key("pgdown:%(n)d"),
            "up <n> (page | pages)":            Key("pgup:%(n)d"),
