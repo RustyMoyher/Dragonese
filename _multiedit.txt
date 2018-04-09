@@ -39,7 +39,7 @@ cmd.map = {
            "left [<n>]":                       Key("left:%(n)d"),
            "right [<n>]":                      Key("right:%(n)d"),
            "puck [<n>]": 	                   Key("pgup:%(n)d"),
-           "dock [<n>]":    		           Key("pgdown:%(n)d"),
+           "bock [<n>]":    		           Key("pgdown:%(n)d"),
            "page up [<n>]":                    Key("pgup:%(n)d"),
            "page down [<n>]":                  Key("pgdown:%(n)d"),
            "up <n> (page | pages)":            Key("pgup:%(n)d"),
@@ -52,6 +52,7 @@ cmd.map = {
            "doc end":                          Key("c-end"),
 
            "space [<n>]":                      release + Key("space:%(n)d"),
+           "hick":                      	   release + Key("space"),
            "enter [<n>]":                      release + Key("enter:%(n)d"),
            "tab [<n>]":                        Key("tab:%(n)d"),
            "delete [<n>]":                     release + Key("del:%(n)d"),
@@ -86,8 +87,7 @@ cmd.map = {
            "sna-down":                         Key("down, home"), # go to beg of next line
            "dowl":                             Key("down, end"), # go to end of next line
 
-           #"dar":                              release + Key("del"), # delete forward
-           "[<n>] (dar | rook)":               release + Key("del:%(n)d"), # delete forward
+           "[<n>] rook":              		   release + Key("del:%(n)d"), # delete forward
            "[<n>] chook":                      release + Key("backspace:%(n)d"), # delete forward
 
            "bard":                             release + Key("c-left"),                   # go to previous word
@@ -126,14 +126,13 @@ cmd.map = {
           , "(semi colon|sem-col|sem-coal)": T(";")
 
           # Visual Studio specific
-          , "prep": K("f6")
+          , "prep": K("cs-b")
           , "run": K("f5")
           , "rerun": K("cs-f5")
           , "stop-run": K("s-f5")
           , "rat": K("c-f6")
           , "lat": K("cs-f6")
           , "swit": K("c-k, c-o")
-          #, "swit": K("csa-up")
           , "line [<n>]": K("c-g") + T("%(n)d\n") + K("enter")
           , "find": K("c-f")
           , "replace": K("c-h")
@@ -172,10 +171,10 @@ cmd.map = {
           , "rit": Mouse("right")
 
           ## common programming words
-          , "int": T("int")
-          , "float": T("float")
-          , "bool": T("bool")
-          , "Vek": T("Vec2")
+          , "int": T("int ")
+          , "float": T("float ")
+          , "bool": T("bool ")
+          , "Vek": T("Vec2 ")
           , "bang": T("!")
           , "hash-include" : T("#include \"")
           , "cocoa" : T("cocos2d-x")
