@@ -6,6 +6,13 @@
 # natlinkutils.py
 #   This file contains utility classes and functions for grammar files.
 #
+# September 2016 (QH)
+# - rulenumbers are one lower than before in Dragon 15, fix in resultsCallback.
+#
+# Februari 2016 (QH):
+# - added modifier keys for buttonClick (shift, ctrl, alt)
+# - add a {shift} in front of every "normal" playString call, thus preventing the double/dropping character bug.
+#   (the {shift} key is language specific, natlinkmain hold the correct string)
 # September 2013 (QH):
 # use import natlink instead of from natlink import *, forcing qualifying all calls to natlink functions from this module.
 # March 2010 (QH):
@@ -55,17 +62,20 @@
 
 ############################################################################
 # experiment Mark (Vocola Extension)
-# useMarkSendInput = 1
-# if useMarkSendInput:                                
-#     from ExtendedSendDragonKeys import senddragonkeys_to_events
-#     from SendInput import send_input
-#     print "======\nSendInput, a Vocola extension written by Mark Lillibridge,  is "
-#     print "used for all normal playString calls!  If you do not want this,"
-#     print "change the variable useMarkSendInput to 0 in line 58 of"
-#     print "natlinkutils.py.  This file is located in the directory "
-#     print "NatLink\MacroSystem\Core.  Then restart Dragon...\n======"
-# 
+useMarkSendInput = 0
+if useMarkSendInput:
+    import ExtendedSendDragonKeys
+    import SendInput
 
+    from ExtendedSendDragonKeys import senddragonkeys_to_events
+    from SendInput import send_input
+    print "======\nSendInput, a Vocola extension written by Mark Lillibridge,  is "
+    print "used for all normal playString calls!  If you do not want this,"
+    print "change the variable useMarkSendInput to 0 in line 65 of"
+    print "natlinkutils.py.  This file is located in the directory "
+    print "NatLink\MacroSystem\Core.  Then restart Dragon...\n======"
+# 
+import six
 import os, os.path, copy, types
 import struct
 import time
@@ -74,6 +84,10 @@ import natlink
 #from gramparser import *
 import gramparser
 import natlinkmain
+import utilsqh
+DNSVersion = natlinkmain.DNSVersion
+# print 'DNSVersion (natlinkutils) %s'% DNSVersion
+debugLoad = natlinkmain.debugLoad
 
 # The following constants define the common windows message codes which
 # are passed to playEvents.
@@ -170,13 +184,23 @@ def matchWindow(moduleInfo, modName, wndText):
 #    
 # This function simulates a button click or button double click.  Pass in the
 # button name ('left','right' or 'middle') and the count (1 or 2)
+#
 
 
-
-def buttonClick(btnName='left',count=1,modifiers=None):
-    x, y = natlink.getCursorPos()
-    unimacroButtons = {1:'left', 2:'right', 3:'middle'}
+def buttonClick(btnName='left', count=1, modifiers=None):
+    """performs a button (double) click of the mouse
     
+    without parameters: a single left click
+    accepted values:
+     - btnName: 'left', 'right' or 'middle', or 1, 2, 3
+     - count: 1 or 2 or 3 (3 not fully tested)
+     -  modifiers: 'shift', 'ctrl', 'alt', 'menu' ('alt' and 'menu' are identical)
+            (see function getModifierKeyCodes below)
+            (if you want more modifiers, separate by "+" or " ", eg. "shift+ctrl")
+    """
+    x, y = natlink.getCursorPos()
+    
+    unimacroButtons = {1:'left', 2:'right', 3:'middle'}
     if btnName in [1,2,3]:
         btnName = unimacroButtons[btnName]
         
@@ -189,29 +213,47 @@ def buttonClick(btnName='left',count=1,modifiers=None):
         'right': [(wm_rbuttondblclk,x,y),(wm_rbuttonup,x,y)],
         'middle':[(wm_mbuttondblclk,x,y),(wm_mbuttonup,x,y)] }
 
-    single = singleLookup[btnName]  # KeyError means invalid button name
-    double = doubleLookup[btnName]
-
+    try:
+        single = singleLookup[btnName]  # KeyError means invalid button name
+        double = doubleLookup[btnName]
+    except KeyError:
+        raise ValueError('buttonClick, invalid "btnName": %s'% btnName)
+        
+    events = [] # collect all events in a list
     if modifiers:
         try:
             keycodes = getModifierKeyCodes(modifiers)
         except KeyError:
-            print 'buttonClick, invalid "modifiers" given: %s, ignore.'% repr(modifiers)
-            keycodes = []
-        natlink.playEvents( [(wm_keydown, k) for k in keycodes] )
-
-    if count == 1: natlink.playEvents( single )
-    elif count == 2: natlink.playEvents( single + double )
-    else: raise ValueError( "invalid count" )
+            raise ValueError('buttonClick, invalid "modifiers": %s'% repr(modifiers))
+        for k in keycodes:
+            events.append( (wm_keydown, k) )
+        # print "modifiers keycodes: %s"% keycodes
+        
+    if count == 1:
+        events.extend( single )
+    elif count == 2:
+        events.extend( single )
+        events.extend( double )
+    elif count == 3:
+        events.extend( single )
+        events.extend( single )
+        events.extend( single )
+    else:
+        raise ValueError( 'buttonClick, invalid "count": %s'% count )
 
     if modifiers:
-        natlink.playEvents( [(wm_keyup, k) for k in keycodes] )
+        for k in keycodes:
+            events.append( (wm_keyup, k) )
+    if events:
+        # print 'buttonClick events: %s'% events
+        natlink.playEvents(events)
+
  
 def getModifierKeyCodes(modifiers):
     """return a list with keycodes for modifiers
     
     input can be a list of valid modifiers (ctrl, shift or menu == alt ),
-    either in a sequence or as single string. If string contains the + symbol,
+    either in a sequence or as single string. If string contains the + symbol or a space,
     the string is split before searching the keycodes
     
     Invalid input raises a KeyError.
@@ -223,7 +265,9 @@ def getModifierKeyCodes(modifiers):
                          menu=vk_menu,
                          alt=vk_menu)   # added alt  == menu
     if not modifiers: return
-    if isinstance(modifiers, basestring):
+    if type(modifiers) == six.text_type:
+        modifiers = utilsqh.convertToBinary(modifiers)
+    if type(modifiers) == six.binary_type:
         modifiers = modifiers.replace("+", " ").split()
     return [modifier_dict[m] for m in modifiers]
 
@@ -231,52 +275,41 @@ def getModifierKeyCodes(modifiers):
 # reverting to Marks solution, insert {shift}
 # use the language specific shift code, as given in natlinkstatus, and set in natlinkmain  (december 2015)
 def playString(keys, hooks=None):
-    """insert {shift} as workaround for losing keystrokes
+    """do smarter and faster playString than natlink.playString
     
-    only if no special hooks are asked for: insert a {shift} in front of the keystrokes.
-    (if default behaviour is wanted, call natlink.playString directly)
+    If useMarkSendInput is set to 1 (True) (top of this file):
+    the SendInput module of Mark Lillibridge is used.
+    
+    Disadvantage: does not work in elevated windows.
+    
+    This behaviour can be circumvented by adding a hook in the call,
+    or by using SendDragonKeys, SendSystemKeys or SSK (Unimacro).
+    
+    If useMarkSendInput is set to 0 (False), or a hook is added
+    (0x100 for normal behaviour, 0x200 for systemkeys behaviour)
+    then natlink.playString is used, but a {shift} in front of the keystrokes is inserted,
+    in order to prevent doubling or losing keystrokes.
+    
+    (if default behaviour is wanted, you can call natlink.playString directly)
     """
     if not keys:
         return
-    if hooks not in (None, 0x100):
-        natlink.playString(keys, hooks)
-    # elif keys.startswith("@@@@{"):
-    #     print 'playString, do shift + pause'
-    #     natlink.playString("{shift}")
-    #     time.sleep(0.5)
-    else:
-        shiftkey = natlinkmain.shiftkey
-        # if shiftkey:
-        #     print 'shiftcode: %s'% shiftkey
-        # else:
-        #     print 'no shiftcode'
-        # insert shiftkey before the keys:
-        natlink.playString(shiftkey + keys)
+    keys = utilsqh.convertToBinary(keys)
+    if hooks is None and useMarkSendInput:
+        SendInput.send_input(
+            ExtendedSendDragonKeys.senddragonkeys_to_events(keys))
+    else:    
+        if hooks not in (None, 0x100):
+            natlink.playString(keys, hooks)
+        else:
+            shiftkey = natlinkmain.shiftkey
+            natlink.playString(shiftkey + keys)
 
-    # if hooks in [None, 0x100]:
-    #     if useMarkSendInput:
-    #         if keys.find("{ext") >= 0:
-    #             keys = keys.replace("{ext", "{")
-    #         if keys.find("+ext") >= 0:
-    #             keys = keys.replace("+ext", "+")
-    #         # the Vocola extension, code by Mark Lillibridge:
-    #         #print 'send_input and senddragonkeys_to_events: %s'% keys
-    #         if keys.find('\n') > 0:
-    #             keys = keys.replace('\n', '{enter}')
-    #             print 'send_input, change keys to: %s'% repr(keys)
-    #         #print 'do via sendinput: %s'% repr(keys)
-    #         send_input(senddragonkeys_to_events(keys))
-    #     else:
-    #         #print 'do via natlink.playString: %s'% repr(keys)
-    #         natlink.playString(keys, 0x100)
-    # else:
-    #     #print 'do via natlink.playString: %s'% repr(keys)
-    #     natlink.playString(keys, hooks)
 #---------------------------------------------------------------------------
 # (internal use) shared base class for all Grammar base classes.  Do not use
 # this class directly.  See GrammarBase, DictGramBase or SelectGramBase.
 
-class GramClassBase:
+class GramClassBase(object):
 
     def __init__(self):
         self.gramObj = natlink.GramObj()
@@ -299,7 +332,7 @@ class GramClassBase:
     def activate(self,window=0,exclusive=None):
         self.gramObj.activate('',window)
         if exclusive != None:
-            self.gramObj.setExclusive(exclusive)
+            self.setExclusive(exclusive)
 
     def deactivate(self):
         self.gramObj.deactivate('')
@@ -466,18 +499,34 @@ class GrammarBase(GramClassBase):
 
     def __init__(self):
         GramClassBase.__init__(self)
-        self.activeRules = []
+        self.exclusiveState = 0
+        self.activeRules = {}
         self.validRules = []
         self.validLists = []
         self.doOnlyGotResultsObject = None # can rarely be set (QH, dec 2009)
 
     def load(self,gramSpec,allResults=0,hypothesis=0, grammarName=None):
-        if type(gramSpec) == types.StringType:
-            gramSpec = [gramSpec]
-        elif type(gramSpec) != types.ListType:
-            raise TypeError( "grammar definition must be a list of strings" )
-        elif type(gramSpec[0]) != types.StringType:
-            raise TypeError( "grammar definition must be a list of strings" )
+        # print 'loading grammar %s, gramspec type: %s'% (grammarName, type(gramSpec))
+        # code upper ascii characters with latin1 if they were in the process entered as unicode
+        if not type(gramSpec) in (six.text_type, six.binary_type, types.ListType):
+            raise TypeError( "grammar definition of %s must be a string or a list of strings, not %s"% (grammarName, type(gramSpec)))
+        # print 'loading %s, type: %s'% (grammarName, type(gramSpec) )
+        if type(gramSpec) == types.ListType:
+            for i, grampart in enumerate(gramSpec):
+                line = grampart
+                if type(line) == six.binary_type:
+                    line = utilsqh.convertToUnicode(line)
+                if type(line) == six.text_type:
+                    line = utilsqh.convertToBinary(line)
+                if line != grampart:
+                    gramSpec[i] = line
+        if type(gramSpec) == six.binary_type:
+            gramSpec = utilsqh.convertToUnicode(gramSpec)
+        if type(gramSpec) == six.text_type:
+            gramSpec = utilsqh.convertToBinary(gramSpec)
+            gramSpec = gramSpec.split('\n')
+            gramSpec = [g.rstrip() for g in gramSpec]
+            
 
         gramparser.splitApartLines(gramSpec)
         parser = gramparser.GramParser(gramSpec, grammarName=grammarName)
@@ -508,95 +557,190 @@ class GrammarBase(GramClassBase):
 
     def unload(self):
         GramClassBase.unload(self)
-        self.activeRules = []
+        self.activeRules.clear()
+        while self.validRules:
+            self.validRules.pop()
+        while self.validLists:
+            self.validLists.pop()
+        self.exclusiveState = 0
 
     def activate(self, ruleName, window=0, exclusive=None, noError=0):
         if ruleName not in self.validRules:
             raise gramparser.GrammarError( "rule %s was not exported in the grammar" % ruleName , self.scanObj)
+        if type(ruleName) != six.binary_type:
+            raise gramparser.GrammarError( 'GrammarBase, wrong type in activate, %s (%s)'% (ruleName, type(ruleName)), self.scanObj)
         if ruleName in self.activeRules:
-            if noError: return None
-            raise gramparser.GrammarError( "rule %s is already active"% ruleName, self.scanObj)
+            if window == self.activeRules[ruleName]:
+                print 'rule %s already active for window %s'% (ruleName, window)
+                return
+            else:
+                print 'change rule %s from window %s to window %s'% (ruleName, self.activeRules[ruleName], window)
+                self.gramObj.deactivate(ruleName)
+        if debugLoad: print 'activate rule %s (window: %s)'% (ruleName, window)
         self.gramObj.activate(ruleName,window)
-        self.activeRules.append(ruleName)
-        if exclusive != None:
-            self.gramObj.setExclusive(exclusive)
+        self.activeRules[ruleName] = window
+        if not exclusive is None:
+            if debugLoad: print 'set exclusive mode to %s for rule %s'% (exclusive, ruleName)
+            self.setExclusive(exclusive)
+        pass            
 
     def deactivate(self, ruleName, noError=0):
         if ruleName not in self.validRules:
             if noError: return
-            raise gramparser.GrammarError( "rule %s was not exported in the grammar" % ruleName, self.scanObj)
+        if type(ruleName) != six.binary_type:
+            print 'GrammarBase, deactivate, %s (%s)'% (ruleName, type(ruleName))
+            raise gramparser.GrammarError( "rule %s (%s) was not exported in the grammar" %
+                                          ruleName, type(ruleName), self.scanObj)
         if ruleName not in self.activeRules:
             if noError: return
             raise gramparser.GrammarError( "rule %s is not active", self.scanObj)
+        if debugLoad: print 'deactivate rule %s'% ruleName
         self.gramObj.deactivate(ruleName)
-        self.activeRules.remove(ruleName)
+        del self.activeRules[ruleName]
 
     def activateSet(self, ruleNames, window=0, exclusive=None):
-        if not type(ruleNames ) in (types.ListType, types.TupleType):
+        """activate a set of rules.
+
+        Try new strategy, based on the trick of Vocola. Natlink does not work completely correct here.        
+        """
+        if type(ruleNames) == types.ListType:
+            rulenames = copy.copy(ruleNames) # so we can pop items
+        elif type(ruleNames) == types.TupleType:
+            rulenames = list(ruleNames) # so we can pop items
+        else:
             raise TypeError("activateSet, ruleNames (%s) must be a list or a tuple, not: %s"%
-                            (`ruleNames`, type(ruleNames)))
-        for x in copy.copy(self.activeRules):
-            if not x in ruleNames:
-                self.gramObj.deactivate(x)
-                self.activeRules.remove(x)
-        for x in ruleNames:
-            if x not in self.validRules:
-                raise gramparser.GrammarError( "rule %s was not exported in the grammar" % x, self.scanObj )
-            if not x in self.activeRules:
-                self.gramObj.activate(x,window)
-                self.activeRules.append(x)
-        if exclusive != None:
-            self.gramObj.setExclusive(exclusive)
+                            (repr(ruleNames), type(ruleNames)))
+        activeKeys = self.activeRules.keys()
+        for x in activeKeys:
+            if type(x) != six.binary_type:
+                raise TypeError('activateSet, rulename "%s" should be of binary_type, not: %s'% (x, type(x)))
+
+            curWindow = self.activeRules[x]
+            if x in rulenames:
+                if curWindow == window:
+                    rulenames.remove(x)
+                    if debugLoad: print 'activateSet, rule %s already active for %s'% (x, window)
+                else:
+                    if debugLoad: print 'activateSet, rule %s, change from window %s to window %s'% (x, curWindow, window)
+                    self.deactivate(x)
+                    # self.activate(x, window)
+                    # rulenames.remove(x)
+            else:
+                # if same window, deactivate, otherwise just leave...
+                # deactivate direct to gramObj here:
+                if window == curWindow:
+                    if debugLoad: print 'activateSet, do not want %s, so deactivate, same window: %s'% (x, curWindow)
+                    self.deactivate(x)
+                elif window == 0:
+                    if debugLoad: print 'activateSet, deactivate rule %s (global), previous window: %s'% (x, curWindow)
+                    self.deactivate(x)
+                elif curWindow == 0:
+                    if debugLoad: print 'activateSet, deactivate global rule %s, new window window: %s'% (x, window)
+                    self.deactivate(x)
+                else:
+                    if debugLoad: print 'activateSet, deactivate not needed, different window: rule %s, previous window: %s new window: %s'% (x, curWindow, window)             
+        for x in rulenames:
+            self.activate(x, window)
+        if not exclusive is None:
+            self.setExclusive(exclusive)
 
     def deactivateSet(self, ruleNames, noError=0):
         if not type(ruleNames ) in (types.ListType, types.TupleType):
             raise TypeError("deactivateSet, ruleNames (%s) must be a list or a tuple, not: %s"%
-                            (`ruleNames`, type(ruleNames)))
+                            (repr(ruleNames), type(ruleNames)))
         for x in ruleNames:
+            if type(x) != six.binary_type:
+                print 'GrammarBase, deactivateSet, wrong type in rule to deactivate, %s (%s)'% (x, type(x))
             self.deactivate(x, noError=noError)
 
     def activateAll(self, window=0, exclusive=None, exceptlist=None):
+        """activate all rules
+        
+        as experiment first deactivate all rules before doing so
+        """
+        allRules = copy.copy(self.validRules)
         if exceptlist:
             for x in exceptlist:
-                if x in self.activeRules:
-                    self.gramObj.deactivate(x)
-                    self.activeRules.remove(x)
-        for x in self.validRules:
-            if x not in self.activeRules:
-                if exceptlist and x in exceptlist:
-                    continue
-                self.gramObj.activate(x,window)
-                self.activeRules.append(x)
-        if exclusive != None:
-            self.gramObj.setExclusive(exclusive)
+                allRules.remove(x)
+            if debugLoad: print 'activateAll except %s'% exceptlist
+            
+        self.activateSet(allRules, window=window, exclusive=exclusive)
+        if not exclusive is None:
+            self.setExclusive(exclusive)
+
+    def _deactivateAll(self):
+        """deactivate all rules, no change of exclusive state
+        """
+        activeRules = self.activeRules.keys()
+        
+        for x in activeRules:
+            self.deactivate(x)
 
     def deactivateAll(self):
-        for x in self.activeRules:
-            self.gramObj.deactivate(x)
-        self.activeRules = []
-        self.gramObj.setExclusive(0)
+        """deactivate all rules and reset explicit the exclusive state of the grammar
+        """
+        self._deactivateAll()
+        self.setExclusive(0)
 
+    def setExclusive(self, exclusive):
+        """call into gramObj directly
+        maintain self.exclusiveState
+        """
+        if exclusive is None: return
+        if exclusive:
+            value = 1
+        else:
+            value = 0
+            
+        self.gramObj.setExclusive(value)
+        self.exclusiveState = value
+
+    def isExclusive(self):
+        """return True if exclusive, False if non-exclusive (most of the time)
+        """
+        if self.exclusiveState:
+            return True
+        return False
+
+    def isActive(self):
+        """return True is active (rules activated), False if loaded, but no rules active
+        return None if grammar is not loaded (yet)
+        """
+        if self.activeRules:
+            return True
+        return False
+    
+    def isLoaded(self):
+        """return True if grammar is loaded
+        """
+        if self.validRules:
+            return True
+        return False
+    
     def emptyList(self, listName):
         if listName not in self.validLists:
             raise gramparser.GrammarError( "list %s was not defined in the grammar" % listName , self.scanObj)
         self.gramObj.emptyList(listName)
 
     def appendList(self, listName, words):
+        listName = utilsqh.convertToBinary(listName)
         if listName not in self.validLists:
             raise gramparser.GrammarError( "list %s was not defined in the grammar" % listName , self.scanObj)
-        if type(words) == type(""):
+        if type(words) in (six.binary_type, six.text_type):
+            words = utilsqh.convertToBinary(words)
             self.gramObj.appendList(listName,words)
         else:
             for x in words:
+                x = utilsqh.convertToBinary(x)
                 self.gramObj.appendList(listName,x)
     
     def setList(self, listName, words):
+        listName = utilsqh.convertToBinary(listName)
         self.emptyList(listName)
-        self.appendList(listName, words)
+        self.appendList(listName, words) # other way around?
 
     # when a recognition for this grammar occurs, this function gets called
     # by GramObj (it is set as the callback in GrammarBase.load.
-
     def resultsCallback(self, wordsAndNums, resObj):
         # if the allResults flag is set it is possible that the first
         # parameter will be a string instead of a data structure. We 
@@ -626,24 +770,32 @@ class GrammarBase(GramClassBase):
             #print 'skip rest of resultsCallback'
             return
         for x in wordsAndNums:
-            words.append( x[0] )
+            word, ruleNumber = x
+            words.append( word )
             # the numbering of some rules appears to be different in NatSpeak10, catch with try:
+            # if DNSVersion >= 15:
+            #     ruleNumber += 1
             try:
-                ruleName = self.ruleMap[x[1]]
+                ruleName = self.ruleMap[ruleNumber]
             except KeyError:
-                if x[1] == 1000000 and 'dgndictation' in self.ruleMap.values():
+                if ruleNumber in (1000000, 1000001) and 'dgndictation' in self.ruleMap.values():
                     ruleName = 'dgndictation'
-                elif x[1] == 1000001 and 'dgnletters' in self.ruleMap.values():
+                elif ruleNumber in (1000001, 1000002) and 'dgnletters' in self.ruleMap.values():
                     ruleName = 'dgnletters'
+                elif ruleNumber == 0 and word == '\\noise\\?':
+                    continue
                 else:
                     print '='*50
+                    print 'word: %s, ruleNumber: %s'% (word, ruleNumber)
                     print 'wordsAndNums: %s'% wordsAndNums
                     print 'ruleMap: %s'% `self.ruleMap`
-                    mess =  'Invalid key %s for ruleMap'% x[1]
-                    raise KeyError(mess)
+                    mess =  'Invalid key %s for ruleMap'% ruleNumber
+                    print mess
+                    print '==============================='
+                    continue
 
-            fullResults.append( ( x[0], ruleName ) )
-            wordsByRule.setdefault(ruleName, []).append(x[0])
+            fullResults.append( ( word, ruleName ) )
+            wordsByRule.setdefault(ruleName, []).append(word)
                 
         # we also compute a list similar to fullResults except that we group
         # all words which are sequential and in the same rule together in a
@@ -662,6 +814,15 @@ class GrammarBase(GramClassBase):
         self.fullResults = fullResults
         self.seqsAndRules = seqsAndRules
         self.wordsByRule = wordsByRule
+        # if wordsAndNums[0][0] == 'testtestrun':
+        # if wordsAndNums[0][0] == 'testtestrun' or True:
+        #     print 'wordsAndNums: %s'% wordsAndNums
+        # ## print for debugging puposes, eg in the testIniGrammar.py module of Unimacro:
+        #     print 'words = %s'% words
+        #     print 'seqsAndRules = %s'% seqsAndRules
+        #     print 'fullResults = %s'% fullResults
+        
+        ## printing for debug purposes...
         # now we make the callbacks (in each case we only call the fucntion 
         # if it exists in the derived class)
         # - we first call gotResultsInit

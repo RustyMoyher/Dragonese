@@ -35,7 +35,7 @@ from   types import *
 import traceback  # for debugging traceback code in handle_error
 
 import natlink
-
+import natlinkutils
 
 ##
 ## Global variables:
@@ -121,7 +121,7 @@ def do_flush(functional_context, buffer):
             'attempt to call Unimacro, Dragon, or a Vocola extension ' +
             'procedure in a functional context!')
     if buffer != '':
-        natlink.playString(convert_keys(buffer))
+        natlinkutils.playString(convert_keys(buffer))
     return ''
 
 
@@ -230,6 +230,9 @@ try:
     unimacro_available = True
 except ImportError:
     pass
+except IOError:
+    # print 'cannot open Unimacro actions file'
+    pass
 
 def call_Unimacro(argumentString):
     if unimacro_available:
@@ -237,13 +240,19 @@ def call_Unimacro(argumentString):
         try:
             actions.doAction(argumentString)
         except Exception, e:
+            # traceback.print_exc()
             m = "when Vocola called Unimacro to execute:\n" \
                 + '        Unimacro(' + argumentString + ')\n' \
                 + '    Unimacro reported the following error:\n' \
-                + '        ' + type(e).__name__ + ": " + str(e)
+                + '        ' + type(e).__name__ + ": " + str(e) 
+                
             raise VocolaRuntimeError(m)
     else:
-        m = "Unimacro call failed because Unimacro is unavailable"
+        m = '\n'.join(['Unimacro call failed because ',
+                       '    the link with Unimacro is unavailable.',
+                       '    You can fix this by switching on the option:',
+                       '    "Vocola takes Unimacro Actions" in the',
+                       '    program "Configure NatLink via GUI".'])
         raise VocolaRuntimeError(m)
 
 

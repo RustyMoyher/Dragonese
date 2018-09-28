@@ -85,13 +85,19 @@ __version__ = ""   #changed with SVN
 # debugging to print information about when a module is loaded.
 #
 # start with the redirect, so the messages window responds:
-import natlink, sys, traceback
+import natlink
+import sys
+import traceback
+import types
+
 class NewStdout(object):
     softspace=1
     def write(self,text):
         if text.find('\x00') >= 0:
             text = text.replace('\x00', '')
             text = "===Warning, text contains null bytes==\n" + text
+        if type(text) == types.UnicodeType:
+            text = text.encode('cp1252')
         natlink.displayText(text, 0)
     def flush(self):
         pass
@@ -102,6 +108,8 @@ class NewStderr(object):
         if text.find('\x00') >= 0:
             text = text.replace('\x00', '')
             text = "===Warning, text contains null bytes===\n" + text
+        if type(text) == types.UnicodeType:
+            text = text.encode('cp1252')
         natlink.displayText(text, 1)
     def flush(self):
         pass
@@ -169,6 +177,7 @@ try:
         checkForGrammarChanges = value
     
     # start silent, set this to 0:
+    natlinkmainPrintsAtStart = 1
     natlinkmainPrintsAtEnd = 1
     ## << QH added
     
@@ -179,10 +188,14 @@ try:
     # the base directory is one level above the core directory.
     # Vocola grammar files are located here.
     for name in ['coreDirectory', 'baseDirectory', 'DNSuserDirectory', 'userName',
-                 'unimacroDirectory', 'userDirectory', 'DNSdirectory',
-                 'WindowsVersion', 'BaseModel', 'BaseTopic']:
+                 'unimacroDirectory', 'userDirectory',
+                 'WindowsVersion', 'BaseModel', 'BaseTopic',
+                 'language', 'userLanguage', 'userTopic']:
         if not name in globals():
             globals()[name] = ''
+        else:
+            if debugCallback:
+                print 'natlinkmain starting, global variable: %s: %s'% (name, globals()[name])
     del name
     # set in findAndLoadFiles:
     try:
@@ -573,8 +586,9 @@ try:
         global loadedFiles, prevModInfo
         cbd = natlink.getCallbackDepth()
         if debugCallback:
-            print 'beginCallback, cbd: %s, checkAll: %s, checkForGrammarChanges: %s'% \
-                  (cbd, checkAll, checkForGrammarChanges)
+            print 'beginCallback, cbd: %s'% cbd
+            # print 'beginCallback, cbd: %s, checkAll: %s, checkForGrammarChanges: %s'% \
+            #       (cbd, checkAll, checkForGrammarChanges)
         # maybe should be 1...
         if natlink.getCallbackDepth() > 1:
             return
@@ -616,36 +630,55 @@ try:
     # we ignore the callback.
     #
     
-    def changeCallback(type,args):
-        global userName, DNSuserDirectory, language, BaseModel, BaseTopic, DNSmode, changeCallbackUserFirst, shiftkey
+    def changeCallback(Type,args):
+        global userName, DNSuserDirectory, language, userLanguage, userTopic, \
+                BaseModel, BaseTopic, DNSmode, changeCallbackUserFirst, shiftkey
+        
         if debugCallback:
-            print 'changeCallback, type: %s, args: %s'% (type, args)
-        if type == 'mic' and args == 'on':
+            print 'changeCallback, Type: %s, args: %s'% (Type, args)
+        if Type == 'mic' and args == 'on':
             if debugCallback:
                 print 'findAndLoadFiles...'
             moduleInfo = natlink.getCurrentModule()
             findAndLoadFiles()
             beginCallback(moduleInfo, checkAll=1)
             loadModSpecific(moduleInfo)
-        if type == 'user' and userName != args[0]:
-            userName, DNSuserDirectory = args
+
+        ## user: at start and at user switch:
+        if Type == 'user' and userName != args[0]:
+            if debugCallback:
+                print 'callback user, args: %s'% repr(args)
             moduleInfo = natlink.getCurrentModule()
             if debugCallback:
-                print "---------changeCallback, User changed to", userName
+                print "---------changeCallback, User changed to", args[0]
             elif not changeCallbackUserFirst:
                 # first time, no print message, but next time do...
-                print "\n------ user changed to: %s\n"% userName
+                print "\n--- user changed to: %s\n"% args[0]
+    
     
             unloadEverything()
     ## this is not longer needed here, as we fixed the userDirectory
     ##        changeUserDirectory()
+            status.clearUserInfo()
             status.setUserInfo(args)
             language = status.getLanguage()
-            shiftkey = status.getShiftKey(language)
-            print 'setting shiftkey to: %s (language: %s)'% (shiftkey, language)
+            DNSuserDirectory = status.getDNSuserDirectory()
+            userLanguage = status.getUserLanguage()
+            userTopic = status.getUserTopic()
+            baseTopic = status.getBaseTopic() # obsolescent, 2018, DPI15
+            baseModel = status.getBaseModel() # osbolescent, 2018, DPI 15
+            userName = status.getUserName()
+            shiftkey = status.getShiftKey()
+            if debugCallback:
+                print 'setting shiftkey to: %s (language: %s)'% (shiftkey, language)
             
             if debugCallback:
                 print 'usercallback, language: %s'% language
+
+            # initialize recentEnv in natlinkcorefunctions (new 2018, 4.1uniform)
+            natlinkstatus.AddExtendedEnvVariables()
+            natlinkstatus.AddNatlinkEnvironmentVariables(status=status)
+                
             if changeCallbackUserFirst:
                 natlinkstartup.start()
                 changeCallbackUserFirst = 0
@@ -653,13 +686,19 @@ try:
             findAndLoadFiles()        
             beginCallback(moduleInfo, checkAll=1)
             loadModSpecific(moduleInfo)
-            # give a warning for BestMatch V , only for Dragon 12:
-            BaseModel, BaseTopic = status.getBaseModelBaseTopic()
+            # # give a warning for BestMatch V , only for Dragon 12:
+            BaseModel = status.getBaseModel()
+            # BaseTopic = status.getBaseTopic(userTopic=userTopic)
+            BaseTopic = status.getBaseTopic()
             if DNSVersion == 12 and BaseModel.find("BestMatch V") > 0:
                 print '\n--- WARNING: Speech Model BestMatch V is used for this User Profile'
                 print 'The performance of many NatLink grammars is not good with this model.'
                 print 'Please choose another User Profile with for example Speech Model BestMatch IV.'
                 print 'See http://unimacro.antenna.nl/installation/speechmodel.html\n----'
+            if debugCallback:
+                print 'language: %s (%s)'% (language, type(language))
+                print 'userLanguage: %s (%s)'% (userLanguage, type(userLanguage))
+                print 'DNSuserDirectory: %s (%s)'% (DNSuserDirectory, type(DNSuserDirectory))
     
         #ADDED BY BJ, possibility to finish exclusive mode by a grammar itself
         # the grammar should include a function like:
@@ -668,13 +707,22 @@ try:
         #        thisGrammar.cancelMode()
         # and the grammar should have a cancelMode function that finishes exclusive mode.
         # see _oops, _repeat, _control for examples
-        changeCallbackLoadedModules(type,args)
+        changeCallbackLoadedModules(Type,args)
     ##    else:
     ##        # possibility to do things when changeCallBack with mic on: (experiment)
     ##        changeCallbackLoadedModulesMicOn(type, args)
+        if debugCallback:
+            print '=== debugCallback info ==='                
+            for name in ['coreDirectory', 'baseDirectory', 'DNSuserDirectory', 'userName',
+             'unimacroDirectory', 'userDirectory', 
+             'WindowsVersion', 'BaseModel', 'BaseTopic',
+             'language', 'userLanguage', 'userTopic']:
+                if not name in globals():
+                    print 'natlinkmain, changeCallback, not in globals: %s'% name
+                else:
+                    print 'natlinkmain changeCallback, global variable: %s: %s'% (name, globals()[name])
     
-    
-    def changeCallbackLoadedModules(type,args):
+    def changeCallbackLoadedModules(Type,args):
         """BJ added, in order to intercept in a grammar (oops, repeat, control) in eg mic changed
     
         in those cases the cancelMode can be called, so exclusiveMode is finished
@@ -687,7 +735,7 @@ try:
                 except AttributeError: pass
                 else:
     ##                print 'call changeCallback for: %s'% x
-                    apply(func, [type,args])
+                    apply(func, [Type,args])
     
     ### try here a adapted recognitionMimic function
     def recognitionMimic(mimicList):
@@ -702,16 +750,25 @@ try:
     def start_natlink(doNatConnect=None):
         """do the startup of the python macros system
         """
-        global userDirectory, DNSVersion, baseDirectory, WindowsVersion, unimacroDirectory
+        global userDirectory, DNSVersion, coreDirectory, baseDirectory, WindowsVersion, unimacroDirectory
+        if natlinkmainPrintsAtStart:
+            print '-- natlinkmain starting...'
         try:
             # compute the directory where this module came from
+            
             if not natlink.isNatSpeakRunning():
                 print 'start Dragon first, the rerun the script natlinkmain...'
                 time.sleep(10)
                 return
     
-            if doNatConnect:
-                natlink.natConnect(1) # 0 or 1, should not be needed when automatic startup
+            if not doNatConnect is None:
+                if doNatConnect:
+                    print 'start_natlink, do natConnect with option 1, threading'
+                    natlink.natConnect(1) # 0 or 1, should not be needed when automatic startup
+                else:
+                    print 'start_natlink, do natConnect with option 0, no threading'
+                    natlink.natConnect(0) # 0 or 1, should not be needed when automatic startup
+                    
     
             #print "\n".join(["%s=%s" % (k,v) for k, v in sys.modules ])
             #print "\n".join(sys.modules.keys())
@@ -723,7 +780,7 @@ try:
                     pass
                 else:
                     break
-    
+
             if debugLoad: print "NatLink pyd dir " + coreDirectory
             baseDirectory = os.path.normpath(os.path.abspath(os.path.join(coreDirectory,"..")))
             if not baseDirectory in sys.path:
@@ -784,11 +841,10 @@ try:
             # initialize our callbacks
             natlink.setBeginCallback(beginCallback)
             natlink.setChangeCallback(changeCallback)
-
+            
             print 'natlinkmain started from %s:\n  NatLink version: %s\n  DNS version: %s\n  Python version: %s\n  Windows Version: %s\n'% \
                       (status.getCoreDirectory(), status.getInstallVersion(),
-                       DNSVersion, status.getPythonVersion(), WindowsVersion)
-
+                       DNSVersion, status.getPythonVersion(), WindowsVersion, )
         
         except:
             sys.stderr.write( 'Error initializing natlinkmain\n' )

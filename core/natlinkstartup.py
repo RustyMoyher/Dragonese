@@ -14,6 +14,7 @@ import natlinkstatus
 # loading grammars for the first time:
 #
 def start():
+    print 'start of natlinkstartup'
     updateUnimacroHeaderIfNeeded()
     create_new_language_subdirectory_if_needed()
 
@@ -31,8 +32,8 @@ def updateUnimacroHeaderIfNeeded():
         
     destDir              = status.getVocolaUserDirectory()
     coreFolder           = os.path.split(__file__)[0]
-    sourceDir            = os.path.join(coreFolder, "..", "..", "..",
-                                        "Unimacro", 'vocola_compatibility')
+    sourceDir            = os.path.normpath(os.path.join(coreFolder, "..", "..", "..",
+                                        "Unimacro", 'vocola_compatibility'))
     destPath             = os.path.join(destDir,   'Unimacro.vch')
     sourcePath           = os.path.join(sourceDir, 'Unimacro.vch')
     sourceTime, destTime = vocolaGetModTime(sourcePath), \
@@ -70,8 +71,6 @@ Dragon, if you want to use the updated version of this file."""% (destDir, sourc
 def vocolaGetModTime(file):
     try: return os.stat(file)[ST_MTIME]
     except OSError: return 0        # file not found
-
-
 
 ## 
 ## Quintijn's unofficial multiple language kludge:

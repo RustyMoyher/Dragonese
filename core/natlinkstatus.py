@@ -1,12 +1,26 @@
-__version__ = "4.1papa"
-# coding=latin-1
+__version__ = "4.1victor"
 #
 # natlinkstatus.py
 #   This module gives the status of NatLink to natlinkmain
 #
-#  (C) Copyright Quintijn Hoogenboom, February 2008
+#  (C) Copyright Quintijn Hoogenboom, February 2008/January 2018
 #
 #----------------------------------------------------------------------------
+#
+# 4.1victor, changes for DPI15, nearly stable, waiting for Mark getting SendKeys implemented.
+#
+# 4.1uniform, changes for DPI15, and also getting 4 parameters from natlink.changeCallback
+#                                so the userLanguage (and also userTopic) is reporting via natlink.
+#
+# 4.1tango, improving installer
+#            Messages window handles diacritical characters.
+#            several changes unimacro
+#            added chrome_browsing, using Click by Voice.
+# 4.1quebec, working to check of pyd register errors.
+#            cleaning up some functions, getting the correct Dragon version
+#            getting the correct DNSIniDir
+#            removing IncludeUnimacroInPythonPath (done automatically when Vocola wants Unimacro actions)
+#
 # 4.1papa:  intermediate, checking correct Dragon version and reporting windows 8or10
 # 4.1oscar: installer changed, extended with Unimacro, apart from UserDirectory
 # 4.1november: a few small bugs
@@ -83,7 +97,7 @@ getDNSInstallDir:
     this path is taken (if it points to a valid folder)
     Otherwise one of the default paths is taken,
     %PROGRAMFILES%\Nuance\... or %PROGRAMFILES%\ScanSoft\...
-    It must contain at least a Program subdirectory
+    It must contain at least a Program subdirectory or App\Program subdirectory
 
 getDNSIniDir:
     returns the directory where the NatSpeak INI files are located,
@@ -94,7 +108,7 @@ getDNSIniDir:
 getDNSVersion:
     returns the in the version number of NatSpeak, as an integer. So 9, 8, 7, ... (???)
     note distinction is made here between different subversions.
-(getDNSFullVersion: get longer version string)
+(getDNSFullVersion: get longer version string) (obsolete, 2017, QH)
 .
 getWindowsVersion:
     see source below
@@ -102,6 +116,12 @@ getWindowsVersion:
 getLanguage:
     returns the 3 letter code of the language of the speech profile that
     is open (only possible when NatSpeak/NatLink is running)
+
+getUserLanguage:
+    returns the language from changeCallback (>= 15) or config files
+    
+getUserTopic
+    returns the topic of the current speech profile, via changeCallback (>= 15) or config files
 
 getPythonVersion:
     changed jan 2013, return two character version, so without the dot! eg '26'
@@ -136,8 +156,11 @@ getNSAPPSIni(): get the path of nsapps.ini
 
 getBaseModelBaseTopic:
     return these as strings, not ready yet, only possible when
-    NatSpeak/NatLink is running.
-
+    NatSpeak/NatLink is running. Obsolete 2018, use
+getBaseModel
+    get the acoustic model from config files (for DPI15, obsolescent)
+getBaseTopic 
+    get the baseTopic, from ini files. Better use getUserTopic in DPI15
 getDebugLoad:
     get value from registry, if set do extra output of natlinkmain at (re)load time
 getDebugCallback:
@@ -153,12 +176,15 @@ getAhkExeDir: return the directory where AutoHotkey is found (only needed when n
 getAhkUserDir: return User Directory of AutoHotkey, not needed when it is in default.
 
 """
-
+import six
 
 import os, re, win32api, win32con, sys, pprint, stat
-import RegistryDict, natlinkcorefunctions
+import RegistryDict
+import natlinkcorefunctions
 import pywintypes
 import time
+import types
+import inivars
 # for getting generalised env variables:
 
 ##from win32com.shell import shell, shellcon
@@ -168,50 +194,46 @@ VocIniFile  = r"Vocola\Exec\vocola.ini"
 NSExt73Path  = "ScanSoft\NaturallySpeaking"
 NSExt8Path  = "ScanSoft\NaturallySpeaking8"
 NSExt9Path  = "Nuance\NaturallySpeaking9"
-NSExt10Path  = "Nuance\NaturallySpeaking10"
-NSExt11Path  = "Nuance\NaturallySpeaking11"
-NSExt12Path  = "Nuance\NaturallySpeaking12"
-NSExt13Path  = "Nuance\NaturallySpeaking13"
-NSExt14Path  = "Nuance\NaturallySpeaking14"
+# NSExt10Path  = "Nuance\NaturallySpeaking10"
+# NSExt11Path  = "Nuance\NaturallySpeaking11"
+# NSExt12Path  = "Nuance\NaturallySpeaking12"
+# NSExt13Path  = "Nuance\NaturallySpeaking13"
+# NSExt14Path  = "Nuance\NaturallySpeaking14"
 DNSPaths = []
-DNSVersions = range(16,6,-1)
+DNSVersions = range(19,6,-1)
 for v in DNSVersions:
     varname = "NSExt%sPath"%v 
     if "NSExt%sPath"% v not in globals():
         globals()[varname] = "Nuance\NaturallySpeaking%s"% v
     DNSPaths.append(globals()[varname])
-    
-# print 'DNSVersions: %s'% DNSVersions
-# print 'path 15: %s'% NSExt15Path
-# augment above when a new version is there!
 
 # utility functions: 
 ## report function:
-#def fatal_error(message, new_raise=None):
-#    """prints a fatal error when running this module"""
-#    print
-#    print 'natlinkconfigfunctions fails because of fatal error:'
-#    print
-#    print message
-#    print
-#    print 'This can (hopefully) be solved by closing Dragon and then running the NatLink/Unimacro/Vocola Config program with administrator rights.'
-#    print 
-#    if new_raise:
-#        raise
+def fatal_error(message, new_raise=None):
+    """prints a fatal error when running this module"""
+    print
+    print 'natlinkconfigfunctions fails because of fatal error:'
+    print
+    print message
+    print
+    print 'This can (hopefully) be solved by closing Dragon and then running the NatLink/Unimacro/Vocola Config program with administrator rights.'
+    print 
+    if new_raise:
+        raise
 
-# of course for extracting the windows version:
+# Nearly obsolete table, for extracting older windows versions:
+# newer versions go via platform.platform() 
 Wversions = {'1/4/10': '98',
              '2/3/51': 'NT351',
              '2/4/0':  'NT4',
              '2/5/0':  '2000',
              '2/5/1':  'XP',
-             '2/6/0':  'Vista',
-             '2/6/1':  '7',
-             '2/6/2':  '8or10',
+             '2/6/0':  'Vista'
              } 
 
 # the possible languages (for getLanguage)
-languages = {"Nederlands": "nld",
+languages = {  # from config files (if not given by args in setUserInfo)
+             "Nederlands": "nld",
              "Fran\xe7ais": "fra",
              "Deutsch": "deu",
              "UK English": "enx",
@@ -220,7 +242,15 @@ languages = {"Nederlands": "nld",
              "Indian English": "enx",
              "SEAsian English": "enx",
              "Italiano": "ita",
-             "Espa\xf1ol": "esp"}
+             "Espa\xf1ol": "esp",
+             # as passed by args in changeCallback, DPI15:
+             "Dutch": "nld",
+             "French": "fra",
+             "German": "deu",
+             "CAN English": "enx",
+             "AUS English": "enx",
+             "Italian": "ita",
+             "Spanish": "esp",}
 
 shiftKeyDict = {"nld": "Shift",
                 "enx": 'shift',
@@ -228,6 +258,9 @@ shiftKeyDict = {"nld": "Shift",
                 "deu": "umschalt",
                 "ita": "maiusc",
                 "esp": "may\xfas"}
+
+reportDNSIniDirErrors = True # set after one stroke to False, if errors were there (2017, february)
+
 
 class NatlinkStatus(object):
     """this class holds the NatLink status functions
@@ -276,7 +309,7 @@ class NatlinkStatus(object):
     key2 = "App Support GUID"
     value2 = NATLINK_CLSID    
 
-    userArgs = [None, None]
+    userArgsDict = {}
 
     # for quicker access (only once lookup in a run)
     UserDirectory = None # not Unimacro!!
@@ -295,15 +328,15 @@ class NatlinkStatus(object):
         CoreDirectory = natlinkcorefunctions.getBaseFolder()
         self.__class__.CoreDirectory = CoreDirectory
         self.__class__.BaseDirectory = os.path.normpath(os.path.join(CoreDirectory, '..'))
-
-
+        self.__class__.NatlinkDirectory = os.path.normpath(os.path.join(CoreDirectory, '..', '..'))
+        self.skipSpecialWarning = skipSpecialWarning
         # for the migration from registry to ini files:
-        if self.userregnl.firstUse:
-            if self.userregnlOld:
-                self.copyRegSettingsToInifile(self.userregnlOld, self.userregnl)
-            else:
-                if not skipSpecialWarning:
-                    print 'ERROR: no natlinkstatus.ini found and no (old) registry settings, (re)run config program'
+        # if self.userregnl.firstUse:
+        #     if self.userregnlOld:
+        #         self.copyRegSettingsToInifile(self.userregnlOld, self.userregnl)
+        #     else:
+        #         if not skipSpecialWarning:
+        #             print 'ERROR: no natlinkstatus.ini found and no (old) registry settings, (re)run config program'
         self.correctIniSettings() # change to newer conventions
         result = self.checkNatlinkPydFile()
         if result is None:
@@ -324,14 +357,13 @@ class NatlinkStatus(object):
         """
         while self.hadWarning:
             self.hadWarning.pop()
-                
    
     def checkSysPath(self):
-        """add base and user directory to sys.path
-        
-        if user directory is NOT unimacro directory, also try to add
-        unimacro directory to the path.
-        
+        """add base, unimacro and user directory to sys.path
+
+        if Vocola is enabled, but Unimacro is NOT and the option VocolaTakesUnimacroActions is True,
+        then also include the Unimacro directory!
+
         (the registry is out of use, only the core directory is in the
         PythonPath \ NatLink setting, for natlink be able to be started.
         
@@ -381,13 +413,12 @@ Please try to correct this by running the NatLink Config Program (with administr
         if userDir: 
             self.InsertToSysPath(userDir)
 
-    
-        includeUnimacro = self.getIncludeUnimacroInPythonPath()
-        if  includeUnimacro:
+        includeUnimacroDirectory =  self.UnimacroIsEnabled() or (self.VocolaIsEnabled() and self.getVocolaTakesUnimacroActions())
+        if  includeUnimacroDirectory:
             if not baseDir:
                 print 'no baseDir found, cannot "IncludeUnimacroInPythonPath"'
                 return
-            unimacroDir = os.path.join(baseDir, '..', '..', 'unimacro')
+            unimacroDir = os.path.join(baseDir, '..', '..', 'Unimacro')
             unimacroDir = os.path.normpath(unimacroDir)
             if os.path.isdir(unimacroDir):
                 self.InsertToSysPath(unimacroDir)
@@ -439,6 +470,7 @@ Please try to correct this by running the NatLink Config Program (with administr
                 else:
                     self.warning('incorrect originalPyd (from natlinkstatus.ini): %s, wanted: %s'% (originalPyd, wantedPyd))
             return
+            
         # now check for updates:
         timeWantedPyd = getFileDate(wantedPydPath)
         timeCurrentPyd = getFileDate(currentPydPath)
@@ -469,38 +501,45 @@ Please try to correct this by running the NatLink Config Program (with administr
         try:
             lmPythonPathDict = RegistryDict.RegistryDict(win32con.HKEY_LOCAL_MACHINE, pythonPathSectionName, flags=flags)
         except:
-            fatal_error("registry section for pythonpath does not exist yet: %s,  probably invalid Python version: %s"%
-                             (pythonPathSectionName, version))
-            return None, None
+            fatal_error("registry section for pythonpath does not exist, probably invalid python version: %s"% version)
+
         if 'NatLink' in lmPythonPathDict.keys():
             subDict = lmPythonPathDict['NatLink']
             if isinstance(subDict, RegistryDict.RegistryDict):
                 if '' in subDict.keys():
                     value = subDict['']
-                    if value and type(value) in (str, unicode):
+                    if value and type(value) in (types.StringType, types.UnicodeType):
                         # all well (only the value is not tested yet):
                         pass  #OK otherwise print an error
                     else:
-                        fatal_error('registry section for PythonPath should contain a folder "NatLink" with a non empty string or unicode default entry (key empty string), not: %s'%  repr(subDict))
+                        if not self.skipSpecialWarning:
+                            fatal_error('registry section for PythonPath should contain a folder "NatLink" with a non empty string or unicode default entry (key empty string), not: %s'%  repr(subDict))
                 else:
-                    fatal_error('registry section for PythonPath should contain in folder "NatLink" a default entry (key empty string), not: %s'%  repr(subDict))
+                    if not self.skipSpecialWarning:
+                        fatal_error('registry section for PythonPath should contain in folder "NatLink" a default entry (key empty string), not: %s'%  repr(subDict))
             else:
-                fatal_error('registry section for PythonPath should contain a folder "NatLink" with a default entry (key empty string): HKLM\\\\%s'%  pythonPathSectionName)
+                if not self.skipSpecialWarning:
+                    fatal_error('registry section for PythonPath should contain a folder "NatLink" with a default entry (key empty string): HKLM\\\\%s'%  pythonPathSectionName)
         else:
-            fatal_error('Registry section for PythonPath should contain a folder "NatLink": HKLM\\\\%s'% pythonPathSectionName)
+            if not self.skipSpecialWarning:
+                fatal_error('Registry section for PythonPath should contain a folder "NatLink": HKLM\\\\%s'% pythonPathSectionName)
         return lmPythonPathDict, pythonPathSectionName
 
     def InsertToSysPath(self, newdir):
         """leave "." in the first place if it is there"""
         if not newdir: return
         newdir = os.path.normpath(newdir)
+        newdir = win32api.GetLongPathName(newdir)
+        # keep the convention of capitalizing the drive letter:
+        if len(newdir) > 1 and newdir[1] == ":":
+            newdir = newdir[0].upper() + newdir[1:]
+            
         if newdir in sys.path: return
         if sys.path[0] in ("", "."):
             sys.path.insert(1, newdir)
         else:
             sys.path.insert(0, newdir)
         #print 'inserted in sys.path: %s'% newdir
-            
    
     def copyRegSettingsToInifile(self, reg, ini):
         """for firsttime use, copy values from 
@@ -530,23 +569,82 @@ Please try to correct this by running the NatLink Config Program (with administr
         oldSetting = ini.get('UserDirectory')
         if oldSetting and oldSetting.find('Unimacro') > 0:
             ini.delete('UserDirectory')
-            
+        oldSetting = ini.get('IncludeUnimacroInPythonPath')
+        if oldSetting:
+            ini.delete('IncludeUnimacroInPythonPath')
             
     def setUserInfo(self, args):
         """set username and userdirectory at change callback user
         """
-        self.userArgs[0] = args[0]
-        self.userArgs[1] = args[1]
-        
+        if len(args) < 2:
+            print 'UNEXPECTED ERROR: natlinkstatus, setUserInfo: length of args to small, should be at least 2: %s (%s)'% (len(args), repr(args))
+            return
 
+        userName = args[0]
+        self.userArgsDict['userName'] = userName
+        DNSuserDirectory = args[1]
+        self.userArgsDict['DNSuserDirectory'] = DNSuserDirectory
+        if len(args) == 2:
+            userLanguage = self.getUserLanguageFromInifile()
+            try:
+                language = languages[userLanguage]
+            except KeyError:
+                print 'natlinkstatus, setUserInfo: no language found for userLanguage: %s'% userLanguage
+                language = ''
+            self.userArgsDict['language'] = language
+            self.userArgsDict['userLanguage'] = userLanguage
+            self.userArgsDict['userTopic'] = self.getUserTopic() # will be the basetopic...
+            
+        elif len(args) == 4:
+            userLanguage = args[2]
+            try:
+                language = languages[userLanguage]
+            except KeyError:
+                print 'natlinkstatus, setUserInfo: cannot get language from userLanguage: %s'% userLanguage
+                print '=== please report to q.hoogenboom@antenna.nl ==='
+                userLanguageIni = self.getUserLanguageFromInifile()
+                try:
+                    language = languages[userLanguageIni]
+                except KeyError:
+                    print 'SERIOUS ERROR: natlinkstatus, setUserInfo: cannot get language from  ini file either: %s'% userLanguageIni
+                    print 'languages: %s'% languages
+                    language = 'zxz'
+                print 'got language: %s, userLanguage1: %s, userLanguageIni (from config files): %s'% (language, userLanguage, userLanguageIni)
+            self.userArgsDict['language'] = language
+            self.userArgsDict['userLanguage'] = userLanguage
+            self.userArgsDict['userTopic'] = args[3]
+        else:
+            print 'natlinkstatus, setUserInfo: unexpected length of args for userArgsDict: %s (%s)'% (len(args), repr(args))
+            print '=== please report to q.hoogenboom@antenna.nl ==='
+            userLanguageIni = self.getUserLanguageFromInifile()
+            try:
+                language = ''
+                language = languages[userLanguageIni]
+            except KeyError:
+                print 'SERIOUS ERROR, natlinkstatus setUserInfo: cannot find language for %s'% userLanguageIni
+                print 'got language: %s, userLanguageIni: %s'% (language, userLanguageIni)
+                print 'natlinkstatus, languages: %s'% languages
+                language = 'xyz'
+            self.userArgsDict['language'] = language
+            self.userArgsDict['userLanguage'] = userLanguageIni
+            self.userArgsDict['userTopic'] = self.getBaseTopic()
+        print '--- natlinkstatus, set userArgsDict: %s'% self.userArgsDict
+        
     def clearUserInfo(self):
-        self.userArgs[0] = None
-        self.userArgs[1] = None
+        self.userArgsDict.clear()
 
     def getUserName(self):
-        return self.userArgs[0]
+        try:
+            return self.userArgsDict[u'userName']
+        except KeyError:
+            return ''
+
     def getDNSuserDirectory(self):
-        return self.userArgs[1]
+        try:
+            return self.userArgsDict[u'DNSuserDirectory']
+        except KeyError:
+            return ''
+        
 
     def getCoreDirectory(self):
         """return the path to coreDir or CoreDirectory
@@ -573,8 +671,10 @@ Please try to correct this by running the NatLink Config Program (with administr
             
         if drag <= 11:
             ansiUnicode = 'ANSI'
+        elif drag <= 14:
+            ansiUnicode= 'UNICODE'
         else:
-            ansiUnicode = 'UNICODE'
+            ansiUnicode = 'Ver15'
 
         pydFilename = 'natlink_%s_%s.pyd'% (pythonInFileName, ansiUnicode)
         return pydFilename    
@@ -589,11 +689,17 @@ Please try to correct this by running the NatLink Config Program (with administr
         pyth = self.getPythonVersion()
         drag = self.getDNSVersion()
         pythonInFileName = pyth[0] + '.' + pyth[-1]
-
+        if not pyth:
+            return ""
+        if not drag:
+            return ""
+        drag, pyth = int(drag), int(pyth)
         if drag <= 11:
             ansiUnicode = 'ANSI'
+        elif drag <= 14:
+            ansiUnicode= 'UNICODE'
         else:
-            ansiUnicode = 'UNICODE'
+            ansiUnicode = 'Ver15'
 
         pydFilename = 'natlink_%s_%s.pyd'% (pythonInFileName, ansiUnicode)
         return pydFilename    
@@ -609,15 +715,22 @@ Please try to correct this by running the NatLink Config Program (with administr
         try:
             windowsVersion = Wversions[version]
         except KeyError:
-            print 'natlinkstatus.getWindowsVersion: (yet) unknown Windows version: %s'% version
-            return  version
-        return windowsVersion
+            import platform
+            wVersion = platform.platform()
+            if '-' in wVersion:
+                return wVersion.split('-')[1]
+            else:
+                print 'Warning, probably cannot find correct Windows Version... (%s)'% wVersion
+                return wVersion
+        else:
+            return windowsVersion
     
 
-    def getDNSIniDir(self):
+    def getDNSIniDir(self, calledFrom=None):
         """get the path (one above the users profile paths) where the INI files
         should be located
         """
+        global reportDNSIniDirErrors
         # first try if set (by configure dialog/natlinkinstallfunctions.py) if regkey is set:
         key = 'DNSIniDir'
         P = self.userregnl.get(key)
@@ -625,28 +738,52 @@ Please try to correct this by running the NatLink Config Program (with administr
             os.path.normpath(P)
             if os.path.isdir(P):
                 return P
+        if calledFrom is None:
+            knownDNSVersion = str(self.getDNSVersion())
+        else:
+            knownDNSVersion = None
         
         # first try in allusersprofile/'application data'
         allusersprofile = natlinkcorefunctions.getExtendedEnv('ALLUSERSPROFILE')
-        trunkPath = os.path.join(os.environ['ALLUSERSPROFILE'], 'Application Data')
+        trunkPaths  = [allusersprofile, os.path.join(os.environ['ALLUSERSPROFILE'], 'Application Data') ]
+        report = []
+        triedPaths = []
         for dnsdir in DNSPaths:
-            cand = os.path.join(trunkPath, dnsdir)
-            if os.path.isdir(cand):
-                nssystem = os.path.join(cand, self.NSSystemIni)
-                nsapps = os.path.join(cand, self.NSAppsIni)
-                if os.path.isfile(nssystem) and os.path.isfile(nsapps):
-                    return os.path.normpath(cand)
-        print 'no valid DNS INI files Dir found, please provide one in natlinkconfigfunctions (option "c") or in natlinkconfig  GUI (info panel)'
-
+            if knownDNSVersion:
+                if dnsdir.find(knownDNSVersion) == -1:
+                    continue
+            triedPaths.append(dnsdir)
+        if not triedPaths:
+            if reportDNSIniDirErrors:
+                report.append('DNSIniDir not found, did not find paths to try from for version: %s'% self.getDNSVersion())
+                report.append('Please report to q.hoogenboom@antenna.nl')
+        
+        for trunk in trunkPaths:
+            for dnsdir in triedPaths:
+                cand = os.path.join(trunk, dnsdir)
+                if os.path.isdir(cand):
+                    nssystem = os.path.join(cand, self.NSSystemIni)
+                    nsapps = os.path.join(cand, self.NSAppsIni)
+                    if os.path.isfile(nssystem) and os.path.isfile(nsapps):
+                        return os.path.normpath(cand)
+        if reportDNSIniDirErrors:
+            reportDNSIniDirErrors = False
+            report.append('DNSIniDir not found, tried in ProgramData directories: %s'% repr(trunkPaths))
+            report.append('Tried in DNSPaths: %s'% triedPaths)
+            report.append('no valid DNS INI files Dir found, please provide one in natlinkconfigfunctions (option "c") or in natlinkconfig  GUI (info panel)')
+            report.append('Note: The path must end with "NaturallySpeaking%s"'% self.getDNSVersion())
+            print 'Errors in getDNSIniDir:'
+            print '\n'.join(report)
         
     def getDNSFullVersion(self):
         """find the Full version string of DNS
 
         empty if not found, eg for older versions
-        """    
-        dnsPath = self.getDNSInstallDir()
+        """
+        print 'getDNSFullVersion nearly obsolete'
         # for 9:
-        iniDir = self.getDNSIniDir()
+        iniDir = self.getDNSIniDir(calledFrom="getDNSFullVersion")
+        # print 'iniDir: %s'% iniDir
         if not iniDir:
             return 0
         nssystemini = self.getNSSYSTEMIni()
@@ -660,10 +797,11 @@ Please try to correct this by running the NatLink Config Program (with administr
 
     
     def getDNSVersion(self):
-        """find the correct DNS version number (integer)
+        """find the correct DNS version number (as an integer)
 
 
         note: 12.80 is also 13
+        from 10 onwards, get as last two characters of the DNSInstallDir
         for versions 8 and 9 look in NSSystemIni, take from DNSFullVersion
         for 9 in Documents and Settings
         for 8 in Program Folder
@@ -671,7 +809,33 @@ Please try to correct this by running the NatLink Config Program (with administr
         for earlier versions try the registry, the result is uncertain.    
 
         """
+        dnsPath = self.getDNSInstallDir()
+        if not dnsPath:
+            print 'dnsPath not found, please ensure there is a proper DNSInstallDir'
+            return 0
+        # pos = dnsPath.rfind("NaturallySpeaking")
+        # if pos == -1:
+        #     print 'Cannot find "NaturallySpeaking" in dnsPath: "%s"'% dnsPath
+
+        versionString = dnsPath[-2:]
+        
+        try:
+            i = int(versionString[0])
+        except ValueError:
+            versionString = versionString[-1:]  # dragon 9
+        except IndexError:
+            print 'versionString: "%s", dnsPath: "%s"'% (versionString, dnsPath)
+        try:
+            i = int(versionString) 
+        except ValueError:
+            print 'Cannot find versionString, dnsPath should end in two digits (or one for versions below 10): %s'% dnsPath
+            print 'These digits must match the version number of Dragon!!!'
+            return 0
+        return i
+
+        ## older versions, not taken from the install dir (obsolete really)
         version = self.getDNSFullVersion()
+        print 'DNSFullVersion: %s'% version
         if version:
             if version.find('.') > 0:
                 versionList = map(int, version.split('.'))
@@ -684,6 +848,7 @@ Please try to correct this by running the NatLink Config Program (with administr
                 return int(version[0])
 
         try:
+            print 'getDNSVersion, try for very old version, 8 or before...'
             # older versions:        
             # try falling back on registry:
             r= RegistryDict.RegistryDict(win32con.HKEY_CURRENT_USER,"Software\ScanSoft")
@@ -694,7 +859,8 @@ Please try to correct this by running the NatLink Config Program (with administr
             else:
                 DNSVersion = 5
         except:
-            DNSVersion = 10
+            print 'no good DNS version found, return 999'
+            DNSVersion = 999
 
         return DNSVersion
 
@@ -707,10 +873,25 @@ Please try to correct this by running the NatLink Config Program (with administr
         key = 'DNSInstallDir'
         P = self.userregnl.get(key)
         if P:
-            os.path.normpath(P)
-            if os.path.isdir(P):
+            if self.checkDNSProgramDir(P):
                 return P
-                
+            else:
+                if not self.skipSpecialWarning:
+                    print '-'*60
+                    print 'DNSInstallDir is set in natlinkstatus.ini to "%s", ...'% P
+                    print '... this does not match a valid Dragon Program Directory.'
+                    print 'This directory should hold a Program subdirectory or'
+                    print 'or the subdirectories "App\\Program"'
+                    print 'in which the Dragon program is located.'
+                    print
+                    print 'Please set or clear DNSInstallDir:'
+                    print 'In Config GUI, with button in the info panel, or'
+                    print 'Via natlinkconfigfunctions.py with option d'
+                    print '-'*60
+                    raise IOError('Invalid value of DNSInstallDir: %s'% P)
+                else:
+                    print 'invalid DNSInstallDir: %s, but proceed...'% P
+                    return ''
         pf = natlinkcorefunctions.getExtendedEnv('PROGRAMFILES')
         if not os.path.isdir(pf):
             raise IOError("no valid folder for program files: %s"% pf)
@@ -721,9 +902,27 @@ Please try to correct this by running the NatLink Config Program (with administr
                 if os.path.isdir(programfolder):
                     return os.path.normpath(cand)
         print 'no valid DNS Install Dir found, please provide one in natlinkconfigfunctions (option "d") or in natlinkconfig  GUI (info panel)'
-        
+        return ''
 
-
+    def checkDNSProgramDir(self, checkDir):
+        """check if directory is a Dragon directory
+     
+        it must be a directory, and have as subdirectories App/Program (reported by Udo) or Program.
+        In this subdirectory there should be natspeak.exe
+        """
+        if not checkDir:
+            return
+        if not os.path.isdir(checkDir):
+            print 'checkDNSProgramDir, %s is not a directory'% checkDir
+            return
+        programDirs = os.path.join(checkDir, 'Program'), os.path.join(checkDir, 'App', 'Program')
+        for programDir in programDirs:
+            programDir = os.path.normpath(programDir)
+            programFile = os.path.join(programDir, 'natspeak.exe')
+            if os.path.isdir(programDir) and os.path.isfile(programFile):
+                return True
+        print 'checkDNSProgramDir, %s is not a valid Dragon Program Directory'%  checkDir
+        return 
     #def getPythonFullVersion(self):
     #    """get the version string from sys
     #    """
@@ -819,10 +1018,14 @@ Please try to correct this by running the NatLink Config Program (with administr
         if not self.CoreDirectory:
             return
         nssystemini = self.getNSSYSTEMIni()
+        if not os.path.isfile(nssystemini):
+            raise IOError("NatlinkIsEnabled, not a valid file: %s"% nssystemini)
         actual1 = win32api.GetProfileVal(self.section1, self.key1, "", nssystemini)
 
 
         nsappsini = self.getNSAPPSIni()
+        if not os.path.isfile(nsappsini):
+            raise IOError("NatlinkIsEnabled, not a valid file: %s"% nsappsini)
         actual2 = win32api.GetProfileVal(self.section2, self.key2, "", nsappsini)
         if self.value1 == actual1:
             if self.value2 == actual2:
@@ -906,9 +1109,10 @@ Please try to correct this by running the NatLink Config Program (with administr
         else:
             uDir = os.path.normpath(os.path.join(self.CoreDirectory, '..','..', '..', 'Unimacro'))
             if uDir and os.path.isdir(uDir):
-                print 'UnimacroDirectory: %s'% uDir
+                pass
+                # print 'UnimacroDirectory: %s'% uDir
             else:
-                print 'UnimacroDirectory empty, directory not found: %s'% uDir
+                print 'UnimacroDirectory not found: %s, set empty string'% uDir
                 uDir = ''
             
         self.__class__.UnimacroDirectory = uDir # meaning path is invalid!!
@@ -1028,19 +1232,16 @@ Please try to correct this by running the NatLink Config Program (with administr
         else:
             return ''
 
-    def getLastUsedAcoustics(self):
-        """get name of last used acoustics,
+    def _getLastUsedAcoustics(self, DNSuserDirectory):
+        """get name of last used acoustics, must have DNSuserDirectory passed
         
         used by getLanguage, getBaseModel and getBaseTopic
         """
-        dir = self.getDNSuserDirectory()
-        if dir is None:
+        if not (DNSuserDirectory and os.path.isdir(DNSuserDirectory)):
             print 'probably no speech profile on'
-            return
+            return ''
         #dir = r'D:\projects'  # for testing (at bottom of file)
-        if not os.path.isdir(dir):
-            raise ValueError('not a valid DNSuserDirectory: |%s|, check your configuration'% dir)
-        optionsini = os.path.join(dir, 'options.ini')
+        optionsini = os.path.join(DNSuserDirectory, 'options.ini')
         if not os.path.isfile(optionsini):
             raise ValueError('not a valid options inifile found: |%s|, check your configuration'% optionsini)
         
@@ -1054,16 +1255,16 @@ Please try to correct this by running the NatLink Config Program (with administr
                              (keyToModel, optionsini))
         return keyToModel
 
-    def getLastUsedTopic(self):
+    def _getLastUsedTopic(self, DNSuserDirectory):
         """get name of last used topic,
         
         used by getBaseTopic
         """
-        dir = self.getDNSuserDirectory()
-        #dir = r'D:\projects'  # for testing (at bottom of file)
-        if not os.path.isdir(dir):
-            raise ValueError('not a valid DNSuserDirectory: |%s|, check your configuration'% dir)
-        optionsini = os.path.join(dir, 'options.ini')
+        # Dir = self.getDNSuserDirectory()
+        # #dir = r'D:\projects'  # for testing (at bottom of file)
+        if not os.path.isdir(DNSuserDirectory):
+            raise ValueError('not a valid DNSuserDirectory: |%s|, check your configuration'% DNSuserDirectory)
+        optionsini = os.path.join(DNSuserDirectory, 'options.ini')
         if not os.path.isfile(optionsini):
             raise ValueError('not a valid options inifile found: |%s|, check your configuration'% optionsini)
         
@@ -1078,89 +1279,117 @@ Please try to correct this by running the NatLink Config Program (with administr
         return keyToModel
     
 
-    def getBaseModelBaseTopic(self):
-        """extract BaseModel and BaseTopic of current user
-        
-        for historical reasons here,
-        better use getBaseModel and getBaseTopic separate...
-        """
-        return self.getBaseModel(), self.getBaseTopic()
+    # def getBaseModelBaseTopic(self, userTopic=None):
+    #     """extract BaseModel and BaseTopic of current user
+    #     
+    #     for historical reasons here,
+    #     better use getBaseModel and getBaseTopic separate...
+    #     """
+    #     return self.getBaseModel(), self.getBaseTopic(userTopic=userTopic)
 
     def getBaseModel(self):
         """getting the base model, '' if error occurs
+        getting obsolete in DPI15
         """
-        dir = self.getDNSuserDirectory()
+        Dir = self.getDNSuserDirectory()
         #dir = r'D:\projects'   # for testing, see bottom of file
-        keyToModel = self.getLastUsedAcoustics()
-        acousticini = os.path.join(dir, 'acoustic.ini')
+        keyToModel = self._getLastUsedAcoustics(Dir)
+        acousticini = os.path.join(Dir, 'acoustic.ini')
         section = "Base Acoustic"
         basesection = natlinkcorefunctions.InifileSection(section=section,
                                                          filename=acousticini)
         BaseModel = basesection.get(keyToModel, "")
+        # print 'getBaseModel: %s'% BaseModel
         return BaseModel
-    
-
-        return self.getBaseModelBaseTopic()[0]
 
     def getBaseTopic(self):
         """getting the base topic, '' if error occurs
+
+        with DPI15, the userTopic is given by getCurrentUser, so better use that one
         """
-        dir = self.getDNSuserDirectory()
+        Dir = self.getDNSuserDirectory()
         #dir = r'D:\projects'   # for testing, see bottom of file
-        keyToModel = self.getLastUsedTopic()
+        keyToModel = self._getLastUsedTopic(Dir)
         if not keyToModel:
             print 'Warning, no valid key to topic found'
             return ''
-        topicsini = os.path.join(dir, 'topics.ini')
+        topicsini = os.path.join(Dir, 'topics.ini')
         section = "Base Topic"
         topicsection = natlinkcorefunctions.InifileSection(section=section,
                                                          filename=topicsini)
         BaseTopic = topicsection.get(keyToModel, "")
+        # print 'getBaseTopic: %s'% BaseTopic
         return BaseTopic
 
-
-    def getLanguage(self):
-        """this can only be run if natspeak is running
-
-        The directory of the user speech profiles must be passed.
-        So this function should be called at changeCallback when a new user
-        is opened.
+    def getUserTopic(self):
+        """return the userTopic.
+        
+        from DPI15 returned by changeCallback user, before identical to BaseTopic
         """
-        dir = self.getDNSuserDirectory()
-        if dir is None:
-            print 'probably no speech profile on'
-            return
-        #dir = r'D:\projects' # for testing, see bottom of file
-        keyToModel = self.getLastUsedAcoustics()
-        acousticini = os.path.join(dir, 'acoustic.ini')
+        try:
+            return self.userArgsDict['userTopic']
+        except KeyError:
+            return self.getBaseTopic()
+        
+    def getLanguage(self):
+        """get language from userArgsDict
+        
+        '' if not set, probably no speech profile on then
+    
+        """
+        try:
+            return self.userArgsDict['language']
+        except KeyError:
+            return ''
+    
+    def getUserLanguage(self):
+        """get userLanguage from userArgsDict
+        
+        '' if not set, probably no speech profile on then
+        """
+        try:
+            return self.userArgsDict['userLanguage']
+        except KeyError:
+            return ''
+        
+    def getUserLanguageFromInifile(self):
+        """get language, userLanguage info from acoustics ini file
+        """
+        Dir = self.getDNSuserDirectory()
+        
+        if not (Dir and os.path.isdir(Dir)):
+            return ''
+        keyToModel = self._getLastUsedAcoustics(Dir)
+        acousticini = os.path.join(Dir, 'acoustic.ini')
         section = "Base Acoustic"        
         if not os.path.isfile(acousticini):
             print 'getLanguage: Warning, language of the user cannot be found, acoustic.ini not a file in directory %s'% dir
             return 'yyy'
         inisection = natlinkcorefunctions.InifileSection(section=section,
                                                          filename=acousticini)
+        # print 'get data from section %s, key: %s, file: %s'% (section, keyToModel, acousticini)
+        # print 'keys of inisection: %s'% inisection.keys()
+        # print 'inisection:\n%s\n========'% repr(inisection)
+
         lang = inisection.get(keyToModel)
         if not lang:
             print 'getLanguage: Warning, no model specification string for key %s found in "Base Acoustic" of inifile: %s'% (keyToModel, acousticini)
+            print 'You probably got the wrong encoding of the file, probably utf-8-BOM.'
+            print 'Please try to change the encoding to utf-8.'
             return 'zzz'
         lang =  lang.split("|")[0].strip()
         lang = lang.split("(")[0].strip()
         if not lang:
             print 'getLanguage: Warning, no valid specification of language string (key: %s) found in "Base Acoustic" of inifile: %s'% (lang, acousticini)
             return 'www'
-        if lang in languages:
-            return languages[lang]
-        else:
-            
-            print 'getLanguage: Language: %s not found in languageslist: %s, take "xxx"'% \
-                    (lang, languages)
-            return 'xxx'
+        return lang
 
-    def getShiftKey(self, language):
+    def getShiftKey(self):
         """return the shiftkey, for setting in natlinkmain when user language changes.
         
         used for self.playString in natlinkutils, for the dropping character bug. (dec 2015, QH).
         """
+        language = self.getLanguage()
         try:
             return "{%s}"% shiftKeyDict[language]
         except KeyError:
@@ -1186,27 +1415,31 @@ Please try to correct this by running the NatLink Config Program (with administr
     #     value = self.userregnl.get(key, None)
     #     return value
 
-    def getIncludeUnimacroInPythonPath(self):
-        """gets the value of alway include Unimacro directory in PythonPath"""
-        
-        key = 'IncludeUnimacroInPythonPath'
-        value = self.userregnl.get(key, None)
-        return value
+    # def getIncludeUnimacroInPythonPath(self):
+    #     """gets the value of alway include Unimacro directory in PythonPath"""
+    #     
+    #     key = 'IncludeUnimacroInPythonPath'
+    #     value = self.userregnl.get(key, None)
+    #     return value
 
     # get additional options Vocola
     def getVocolaTakesLanguages(self):
-        """gets and value for distinction of different languages in Vocola"""
-        
+        """gets and value for distinction of different languages in Vocola
+        If Vocola is not enabled, this option will also return False
+        """
         key = 'VocolaTakesLanguages'
-        value = self.userregnl.get(key, None)
-        return value
+        if self.VocolaIsEnabled():
+            value = self.userregnl.get(key, None)
+            return value
 
     def getVocolaTakesUnimacroActions(self):
-        """gets and value for optional Vocola takes Unimacro actions"""
-        
+        """gets and value for optional Vocola takes Unimacro actions
+        If Vocola is not enabled, this option will also return False
+        """
         key = 'VocolaTakesUnimacroActions'
-        value = self.userregnl.get(key, None)
-        return value
+        if self.VocolaIsEnabled():
+            value = self.userregnl.get(key, None)
+            return value
     
     def getInstallVersion(self):
         return __version__
@@ -1228,7 +1461,6 @@ Please try to correct this by running the NatLink Config Program (with administr
         D = {}
         for key in ['userName', 'DNSuserDirectory', 'DNSInstallDir',
                     'DNSIniDir', 'WindowsVersion', 'DNSVersion',
-                    'DNSFullVersion', 
                     'PythonVersion',
                     'DNSName',
                     'UnimacroDirectory',
@@ -1236,7 +1468,7 @@ Please try to correct this by running the NatLink Config Program (with administr
                     'VocolaTakesLanguages', 'VocolaTakesUnimacroActions',
                     'UnimacroIniFilesEditor',
                     'InstallVersion', 'NatlinkPydRegistered',
-                    'IncludeUnimacroInPythonPath',
+                    # 'IncludeUnimacroInPythonPath',
                     'AhkExeDir', 'AhkUserDir']:
 ##                    'BaseTopic', 'BaseModel']:
             keyCap = key[0].upper() + key[1:]
@@ -1251,6 +1483,8 @@ Please try to correct this by running the NatLink Config Program (with administr
         D['vocolaIsEnabled'] = self.VocolaIsEnabled()
         D['unimacroIsEnabled'] = self.UnimacroIsEnabled()
         D['userIsEnabled'] = self.UserIsEnabled()
+        # extra for information purposes:
+        D['NatlinkDirectory'] = self.NatlinkDirectory
         return D
         
     def getNatlinkStatusString(self):
@@ -1354,93 +1588,37 @@ def getFileDate(modName):
 # for splitting the env variables:
 reEnv = re.compile('(%[A-Z_]+%)', re.I)
 
-NatLinkEnvVarDict = None
-def SetInNatLinkEnvDictIfValidPath(name, filepath):
-    """set if valid, otherwise DO NOT SET.
+    # 
+    # # initialize recentEnv in natlinkcorefunctions (new 2018, 4.1uniform)
+    # this is done from natlinkmain in changeCallback user:
+    # natlinkstatus.AddExtendedEnvVariables()
+    # natlinkstatus.AddNatLinkEnvironmentVariables(status=status)
     
-    If UserDirectory is not set in the configuration, it will not be set in this dict.
-    """
-    global NatLinkEnvVarDict
-    if NatLinkEnvVarDict is None:
-        NatLinkEnvVarDict = {}
-    if filepath:
-        filepath = os.path.normpath(filepath)
-        if os.path.isdir(filepath):
-            NatLinkEnvVarDict[name] = filepath
-        else:
-            print 'natlinkstatus.SetInNatLinkEnvDictIfValidPath:\nInvalid directory: "%s" for "%s". Set in NatLinkEnvVarDict to ""'% (filepath, name)
 
-def createNatLinkEnvVarDict():
+
+def AddExtendedEnvVariables():
+    """call to natlinkcorefunctions, called from natlinkmain at startup or user callback
+    """
+    natlinkcorefunctions.clearRecentEnv() # make a fresh start!
+    natlinkcorefunctions.getAllFolderEnvironmentVariables(fillRecentEnv=1)
+
+
+def AddNatlinkEnvironmentVariables(status=None):
     """make the special NatLink variables global in this module
     """
-    status = NatlinkStatus()
-    CoreDirectory = status.getCoreDirectory()
-    SetInNatLinkEnvDictIfValidPath("CoreDirectory", CoreDirectory)
-
-    NATLINK = os.path.normpath(os.path.join(CoreDirectory, '..', '..'))
-    SetInNatLinkEnvDictIfValidPath("NATLINK", NATLINK)
-    SetInNatLinkEnvDictIfValidPath("NatLink", NATLINK)
-
-    UNIMACRO = os.path.normpath(os.path.join(NATLINK, '..', 'Unimacro'))
-    SetInNatLinkEnvDictIfValidPath("UNIMACRO", UNIMACRO)
-    SetInNatLinkEnvDictIfValidPath("Unimacro", UNIMACRO)
-
-    CoreDirectory = status.CoreDirectory
-    SetInNatLinkEnvDictIfValidPath("CoreDirectory", CoreDirectory)
-    BaseDirectory = status.BaseDirectory
-    SetInNatLinkEnvDictIfValidPath("BaseDirectory", BaseDirectory)
-        
-    for var in ["UserDirectory", "UnimacroDirectory", "VocolaUserDirectory", "UnimacroUserDirectory"]:
-        func = getattr(status, "get"+var, None)
-        if func:
-            value = func()
-            SetInNatLinkEnvDictIfValidPath(var, value)
-        else:
-            print 'natlinkstatus.createNatLinkEnvVarDict:\nCannot find entry for "%s"'% var
-            
-            
-def expandEnvVars(filepath): 
-    """try to substitute environment variable into a path name
-    
-    first try the NatLink special variables
-        NATLINK, NatLink, Unimacro,
-        CoreDirectory, BaseDirectory (==MacroSystem), UserDirectory
-        UnimacroDirectory, 
-        VocolaUserDirectory, UnimacroUserDirectory
-
-    If %...% persist, call the function in natlinkcorefunctions.
-    """
-    if NatLinkEnvVarDict is None:
-        createNatLinkEnvVarDict()
-    filepath = filepath.strip()
-    
-    if filepath.startswith('~'):
-        folderpart = natlinkcorefunctions.getExtendedEnv('~')
-        filepart = filepath[1:]
-        filepart = filepart.strip('/\\ ')
-        filepath = os.path.normpath(os.path.join(folderpart, filepart))
-    
-    if reEnv.search(filepath):
-        List = reEnv.split(filepath)
-        #print 'parts: %s'% List
-        List2 = []
-        for part in List:
-            if not part: continue
-            key = part.strip("%")
-            if key in NatLinkEnvVarDict:
-                # natlink related env variables:
-                folderpart = NatLinkEnvVarDict[key]
-            else:
-                try:
-                    # try all system env variables:
-                    folderpart = natlinkcorefunctions.getExtendedEnv(part)
-                except ValueError:
-                    folderpart = part
-            List2.append(folderpart)
-        filepath = ''.join(List2)
-        return os.path.normpath(filepath)
-    # no match
-    return filepath
+    if status is None:
+        status = NatlinkStatus()
+    D = status.getNatlinkStatusDict()
+    addedList = []
+    for k, v in D.items():
+        if type(v) in (six.text_type, six.binary_type) and os.path.isdir(v):
+            k = k.upper()
+            v = os.path.normpath(v)
+            addedList.append("%s: %s"% (k,v))
+            natlinkcorefunctions.addToRecentEnv(k, v)
+    return addedList
+    # print 'added to ExtendedEnvVariables:\n'
+    # print '\n'.join(addedList)
 
 def isValidPath(spec, wantFile=None, wantDirectory=None):
     """check existence of spec, allow for pseudosymbols.
@@ -1455,7 +1633,7 @@ def isValidPath(spec, wantFile=None, wantDirectory=None):
         return
     
     if not os.path.exists(spec):
-        spec2 = expandEnvVars(spec)
+        spec2 = natlinkcorefunctions.getExtendedEnv(spec)
     else:
         spec2 = spec
     spec2 = os.path.normpath(spec2)
@@ -1480,41 +1658,28 @@ def isValidPath(spec, wantFile=None, wantDirectory=None):
 if __name__ == "__main__":
     status = NatlinkStatus()
     status.checkSysPath()
+
     print status.getNatlinkStatusString()
     lang = status.getLanguage()
-    
+    print 'language: %s'% lang
     
     # exapmles, for more tests in ...
     print '\n====\nexamples of expanding ~ and %...% variables:'
     short = "~/Quintijn"
-    expanded = expandEnvVars(short)
-    print 'Some directory in home:', expanded
-    
-    # the Dragon directory:
-    short = "%PROGRAMFILES%/Nuance"
-    expanded = expandEnvVars(short)
-    print "The dragon directory: %s"% expanded
-    # the Dragon ini files directory:
-    short = "%COMMON_APPDATA%/Nuance"
-    expanded = expandEnvVars(short)
-    print "The dragon config files: %s"% expanded
-
-    # My UnimacroUserDirectory:
-    short = "%UnimacroUserDirectory%"
-    expanded = expandEnvVars(short)
-    print "My UnimacroUserDirectory: %s"% expanded
-
-    # My VocolaUserDirectory:
-    short = "%VocolaUserDirectory%"
-    expanded = expandEnvVars(short)
-    print "My VocolaUserDirectory: %s"% expanded
-    
+    AddExtendedEnvVariables()
+    addedListNatlinkVariables = AddNatlinkEnvironmentVariables()
     
 
-    # print 'private NatLinkEnvVarDict:'
-    # print NatLinkEnvVarDict
+    print('All "NATLINK" extended variables:')
+    print '\n'.join(addedListNatlinkVariables)
 
-
+    print('\nExample: the Vocola compatibility folder in Unimacro:')
+    voccompDir = natlinkcorefunctions.expandEnvVariableAtStart('%UNIMACRODIRECTORY%/vocola_compatibility')
+    print('%%UNIMACRODIRECTORY%%/vocola_compatibility is expanded to: %s'% voccompDir)
+    print('Is valid directory: %s'% os.path.isdir(voccompDir))
+    
+    
+    
     # next things only testable when changing the dir in the functions above
     # and copying the ini files to this dir...
     # they normally run only when natspeak is on (and from NatSpeak)
