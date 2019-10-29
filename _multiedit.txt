@@ -32,215 +32,216 @@ def K(*args, **kws):
 #  in series so as to execute multiple actions within a single utterance.
 
 cmd.map = {
-           # Spoken-form    ->    ->    ->     Action object
+    # Spoken-form    ->    ->    ->     Action object
 
-           "up [<n>]":                         Key("up:%(n)d"),
-           "down [<n>]":                       Key("down:%(n)d"),
-           "left [<n>]":                       Key("left:%(n)d"),
-           "right [<n>]":                      Key("right:%(n)d"),
-           "puck [<n>]": 	                   Key("pgup:%(n)d"),
-           "bock [<n>]":    		           Key("pgdown:%(n)d"),
-           "page up [<n>]":                    Key("pgup:%(n)d"),
-           "page down [<n>]":                  Key("pgdown:%(n)d"),
-           "up <n> (page | pages)":            Key("pgup:%(n)d"),
-           "down <n> (page | pages)":          Key("pgdown:%(n)d"),
-           "left <n> (word | words)":          Key("c-left:%(n)d"),
-           "right <n> (word | words)":         Key("c-right:%(n)d"),
-           "home":                             Key("home"),
-           "end":                              Key("end"),
-           "doc home":                         Key("c-home"),
-           "doc end":                          Key("c-end"),
+    "up [<n>]":                         Key("up:%(n)d"),
+    "down [<n>]":                       Key("down:%(n)d"),
+    "left [<n>]":                       Key("left:%(n)d"),
+    "right [<n>]":                      Key("right:%(n)d"),
+    "puck [<n>]":                       Key("pgup:%(n)d"),
+    "bock [<n>]":                       Key("pgdown:%(n)d"),
+    "page up [<n>]":                    Key("pgup:%(n)d"),
+    "page down [<n>]":                  Key("pgdown:%(n)d"),
+    "up <n> (page | pages)":            Key("pgup:%(n)d"),
+    "down <n> (page | pages)":          Key("pgdown:%(n)d"),
+    "left <n> (word | words)":          Key("c-left:%(n)d"),
+    "right <n> (word | words)":         Key("c-right:%(n)d"),
+    "home":                             Key("home"),
+    "end":                              Key("end"),
+    "doc home":                         Key("c-home"),
+    "doc end":                          Key("c-end"),
 
-           "space [<n>]":                      release + Key("space:%(n)d"),
-           "hick":                      	   release + Key("space"),
-           "enter [<n>]":                      release + Key("enter:%(n)d"),
-           "tab [<n>]":                        Key("tab:%(n)d"),
-           "delete [<n>]":                     release + Key("del:%(n)d"),
-           "delete [<n> | this] (line|lines)": release + Key("home, s-down:%(n)d, del"),
-           "backspace [<n>]":                  release + Key("backspace:%(n)d"),
-           "pop up":                           release + Key("apps"),
+    "space [<n>]":                      release + Key("space:%(n)d"),
+    "hick":                             release + Key("space"),
+    "enter [<n>]":                      release + Key("enter:%(n)d"),
+    "tab [<n>]":                        Key("tab:%(n)d"),
+    "delete [<n>]":                     release + Key("del:%(n)d"),
+    "delete [<n> | this] (line|lines)": release + Key("home, s-down:%(n)d, del"),
+    "backspace [<n>]":                  release + Key("backspace:%(n)d"),
+    "pop up":                           release + Key("apps"),
 
-           "duplicate <n>":                    release + Key("c-c, c-v:%(n)d"),
-           "[hold] shift":                     Key("shift:down"),
-           "release shift":                    Key("shift:up"),
-           "[hold] control":                   Key("ctrl:down"),
-           "release control":                  Key("ctrl:up"),
-           "release [all]":                    release,
+    "duplicate <n>":                    release + Key("c-c, c-v:%(n)d"),
+    "[hold] shift":                     Key("shift:down"),
+    "release shift":                    Key("shift:up"),
+    "[hold] control":                   Key("ctrl:down"),
+    "release control":                  Key("ctrl:up"),
+    "release [all]":                    release,
 
-           #"say <text>":                       release + Text("%(text)s"),
-           "mimic <text>":                     release + Mimic(extra="text"),
+    "skay <text>":                      release + Text("%(text)s"),
+    "mimic <text>":                     release + Mimic(extra="text"),
 
-           "[<n>] slap":                       release + Key("enter:%(n)d"),
-           "cot":                              release + Key("c-c"),
-           "pat":                              release + Key("c-v"),
+    "[<n>] slap":                       release + Key("enter:%(n)d"),
+    "cot":                              release + Key("c-c"),
+    "pat":                              release + Key("c-v"),
 
-           "hive":                             Key("hyphen"),
-           "quote":                            Key("quote"),
-           "percent":                          Key("percent"),
-           "coat":                             Key("comma"),
-           "plus":                             Key("plus"),
-           "(equal | equals)":                 Key("equal"),
+    "hive":                             Key("hyphen"),
+    "quote":                            Key("quote"),
+    "percent":                          Key("percent"),
+    "coat":                             Key("comma"),
+    "plus":                             Key("plus"),
+    "(equal | equals)":                 Key("equal"),
 
-           "snap":                             Key("home"), # go to beg of this line
-           "youl":                             Key("end"),  # go to end of this line
-           "snup":                             Key("up, home"), # go to beg of previous line
-           "sna-down":                         Key("down, home"), # go to beg of next line
-           "dowl":                             Key("down, end"), # go to end of next line
+    "snap":                             Key("home"), # go to beg of this line
+    "youl":                             Key("end"),  # go to end of this line
+    "snup":                             Key("up, home"), # go to beg of previous line
+    "sna-down":                         Key("down, home"), # go to beg of next line
+    "dowl":                             Key("down, end"), # go to end of next line
 
-           "[<n>] rook":              		   release + Key("del:%(n)d"), # delete forward
-           "[<n>] chook":                      release + Key("backspace:%(n)d"), # delete forward
+    "[<n>] rook":                       release + Key("del:%(n)d"), # delete forward
+    "[<n>] chook":                      release + Key("backspace:%(n)d"), # delete forward
 
-           "bard":                             release + Key("c-left"),                   # go to previous word
-           "nord":                             release + Key("c-right, c-right, c-left"), # go to next word
-           
-           "lait":                             Key('lparen'),
-           "rait":                             Key('rparen'),
-           "lace":                             Key('lbrace'),
-           "race":                             Key('rbrace'),
-           "lack":                             Key('lbracket'),
-           "rack":                             Key('rbracket'),
+    "bard":                             release + Key("c-left"),                   # go to previous word
+    "nord":                             release + Key("c-right, c-right, c-left"), # go to next word
 
-           "rang": Text(">")
-          , "greater than": Text(" > ")
-          , "lang": Text("<")
-          , "(triple arrow | tri-lang)": Text(" <<< ")
-          , "less than": Text(" < ")
-          , "lat": Text("@")
+    "lait":                             Key('lparen'),
+    "rait":                             Key('rparen'),
+    "lace":                             Key('lbrace'),
+    "race":                             Key('rbrace'),
+    "lack":                             Key('lbracket'),
+    "rack":                             Key('rbracket'),
 
-          , "hash": K("hash")
-          #, "g-equal": T(" >= ")
-          #, "l-equal": Text(" <= ")
-          , "minus-equal": Text(" -= ")
-          , "plus-equal": Text(" += ")
-          , "star-equal": Text(" *= ")
-          , "minus-minus": Text("--")
-          , "plus-plus": Text("++")
-          , "equal": Text(" = ")
-          , "double-equal": Text(" == ")
-          , "(not-equal | nequal)": Text(" != ")
-          , "logical-and": Text(" && ")
-          , "logical-or": Text(" || ")
-          , "left-shift": Text(" << ")
-          , "right-shift": Text(" >> ")
-          , "(colon|coal)": K("colon")
-          , "(semi colon|sem-col|sem-coal)": T(";")
+    "rang": Text(">"),
+    "greater than": Text(" > "),
+    "lang": Text("<"),
+    "(triple arrow | tri-lang)": Text(" <<< "),
+    "less than": Text(" < "),
+    "lat": Text("@"),
 
-          # Visual Studio specific
-          , "prep": K("cs-b")
-          , "run": K("f5")
-          , "rerun": K("cs-f5")
-          , "stop-run": K("s-f5")
-          , "rat": K("c-f6")
-          , "lat": K("cs-f6")
-          , "swit": K("c-k, c-o")
-          , "line [<n>]": K("c-g") + T("%(n)d\n") + K("enter")
-          , "find": K("c-f")
-          , "replace": K("c-h")
-          #, "jump-def": K("f12")
-          , "jump-dec": K("c-f12")
-          , "fort": K("c-k,c-f")
-          , "add-to-header": R + Key("c-e, u, end, lparen, rparen, c-c, c-k, c-o, c-end, up, up, up, end, enter, c-v, up, home, tab, c-right, cs-right, cs-right, del, end") +  T(";") + K("down,cs-l")
-          , "add-full-header": R + Key("c-e, u, end, c-c, c-k, c-o, c-end, up, up, up, end, enter, c-v, up, home, tab, c-right, cs-right, cs-right, del, end") +  T(";") + K("down,cs-l")
-          , "pot": T("->")
-          , "fex": K("f3")
-          , "bex": K("s-f3")
-          , "nulp": T("nullptr")
-          , "comp": K("c-space")
+    "hash": K("hash"),
+    #"g-equal": T(" >= "),
+    #"l-equal": Text(" <= "),
+    "minus-equal": Text(" -= "),
+    "plus-equal": Text(" += "),
+    "star-equal": Text(" *= "),
+    "minus-minus": Text("--"),
+    "plus-plus": Text("++"),
+    "equal": Text(" = "),
+    "double-equal": Text(" == "),
+    "(not-equal | nequal)": Text(" != "),
+    "logical-and": Text(" && "),
+    "logical-or": Text(" || "),
+    "left-shift": Text(" << "),
+    "right-shift": Text(" >> "),
+    "(colon|coal)": K("colon"),
+    "(semi colon|sem-col|sem-coal)": T(";"),
 
-          ## operations on lines
-          , "yank": K("c-l")
-          , "(slurp | kill line)": K("cs-l")
-          , "select-down [<n>]": K("s-down:%(n)d")
-          , "select-right": K("s-end")
-          , "select-left": K("s-home")
-          , "select-word-right": K("cs-right")
-          , "select-word-left": K("cs-left")
+    # Visual Studio specific
+    "prep": K("cs-b"),
+    "run": K("f5"),
+    "rerun": K("cs-f5"),
+    "stop-run": K("s-f5"),
+    "rat": K("c-f6"),
+    "lat": K("cs-f6"),
+    "swit": K("c-k, c-o"),
+    "line [<n>]": K("c-g") + T("%(n)d\n") + K("enter"),
+    "find": K("c-f"),
+    "replace": K("c-h"),
+    #"jump-def": K("f12"),
+    "jump-dec": K("c-f12"),
+    "fort": K("c-k,c-f"),
+    "add-to-header": R + Key("c-e, u, end, lparen, rparen, c-c, c-k, c-o, c-end, up, up, up, end, enter, c-v, up, home, tab, c-right, cs-right, cs-right, del, end") +  T(";") + K("down,cs-l"),
+    "add-full-header": R + Key("c-e, u, end, c-c, c-k, c-o, c-end, up, up, up, end, enter, c-v, up, home, tab, c-right, cs-right, cs-right, del, end") +  T(";") + K("down,cs-l"),
+    "pot": T("->"),
+    "fex": K("f3"),
+    "bex": K("s-f3"),
+    "nulp": T("nullptr"),
+    "comp": K("c-space"),
+
+    ## operations on lines
+    "yank": K("c-l"),
+    "(slurp | kill line)": K("cs-l"),
+    "select-down [<n>]": K("s-down:%(n)d"),
+    "select-right": K("s-end"),
+    "select-left": K("s-home"),
+    "select-word-right": K("cs-right"),
+    "select-word-left": K("cs-left"),
 
 
-          ## operations on words
-          , "(cut-word | yank-word)": K("cs-w, c-x")
-          , "copy-word": K("cs-w, c-c, escape")
-          , "slurp-word": K("cs-w, del")
+    ## operations on words
+    "(cut-word | yank-word)": K("cs-w, c-x"),
+    "copy-word": K("cs-w, c-c, escape"),
+    "slurp-word": K("cs-w, del"),
 
-          ## HMC Commands
-          , "cent": K("cs-c")
-          , "mock": K("cs-s") 
-          , "click": Mouse("left")
-          , "fit": Mouse("left")
-          , "fik": Mouse("left") + Mouse("left")
-          , "rit": Mouse("right")
+    ## HMC Commands
+    "cent": K("cs-c"),
+    "mock": K("cs-s"),
+    "click": Mouse("left"),
+    "fit": Mouse("left"),
+    "fik": Mouse("left") + Mouse("left"),
+    "rit": Mouse("right"),
+    "fak": Mouse("left") + Mouse("left") + release + Key("c-c"),
+    "pak": Mouse("left") + Mouse("left") + release + Key("c-v"),
 
-          ## common programming words
-          , "int": T("int ")
-          , "float": T("float ")
-          , "bool": T("bool ")
-          , "Vek": T("Vec2 ")
-          , "bang": T("!")
-          , "hash-include" : T("#include \"")
-          , "cocoa" : T("cocos2d-x")
-          , "cocos" : T("cocos2d-x")
+    ## common programming words
+    "int": T("int "),
+    "float": T("float "),
+    "bool": T("bool "),
+    "void": T("void "),
+    "Vek": T("Vec2 "),
+    "bang": T("!"),
+    "hash-include" : T("#include \""),
+    "cocoa" : T("cocos2d-x"),
+    "cocos" : T("cocos2d-x"),
 
-          ,
 
-           "comment":                          release + Key("c-k,c-c"),
-           "Tom":                              release + Key("c-k,c-u"),
+    "comment":                          release + Key("c-k,c-c"),
+    "Tom":                              release + Key("c-k,c-u"),
 
-           "Aff":                              Key('a'),
-           "(Brav | Bravo)":                   Key('b'),
-           "Cai":                              Key('c'),
-           "(Doy | Delt | Delta)":             Key('d'),
-           "(Eck | Echo)":                     Key('e'),
-           "Fay":                              Key('f'),
-           "Goff":                             Key('g'),
-           "Hoop":                             Key('h'),
-           "Ish":                              Key('i'),
-           "Jo":                               Key('j'),
-           "Keel":                             Key('k'),
-           "(Lee | Lima)":                     Key('l'),
-           "Mike":                             Key('m'),
-           "Noy":                              Key('n'),
-           "(Osh | Osc)":                      Key('o'),
-           "(Pui | Pom)":                      Key('p'),
-           "(Queen | Quebec)":                 Key('q'),
-           "Ree":                              Key('r'),
-           "Soi":                              Key('s'),
-           "Tay":                              Key('t'),
-           "(Uni | Umm)":                      Key('u'),
-           "Van":                              Key('v'),
-           "Wes":                              Key('w'),
-           "Xanth | Zan":                      Key('x'),
-           "Yaa":                              Key('y'),
-           "(Zul | Zulu)":                     Key('z'),
+    "Aff":                              Key('a'),
+    "(Brav | Bravo)":                   Key('b'),
+    "Cai":                              Key('c'),
+    "(Doy | Delt | Delta)":             Key('d'),
+    "(Eck | Echo)":                     Key('e'),
+    "Fay":                              Key('f'),
+    "Goff":                             Key('g'),
+    "Hoop":                             Key('h'),
+    "Ish":                              Key('i'),
+    "Jo":                               Key('j'),
+    "Keel":                             Key('k'),
+    "(Lee | Lima)":                     Key('l'),
+    "Mike":                             Key('m'),
+    "Noy":                              Key('n'),
+    "(Osh | Osc)":                      Key('o'),
+    "(Pui | Pom)":                      Key('p'),
+    "(Queen | Quebec)":                 Key('q'),
+    "Ree":                              Key('r'),
+    "Soi":                              Key('s'),
+    "Tay":                              Key('t'),
+    "(Uni | Umm)":                      Key('u'),
+    "Van":                              Key('v'),
+    "Wes":                              Key('w'),
+    "Xanth | Zan":                      Key('x'),
+    "Yaa":                              Key('y'),
+    "(Zul | Zulu)":                     Key('z'),
 
-           "[<n>] nut":                        release + Key("%(n)d"),
-           "[<n>] float":                      release + Key("%(n)d") + T(".0f"),
-           "zero-nut":                         release + Key('0'),
-           "zero-float":                       release + Key('0') + T(".0f"),
+    "[<n>] nut":                        release + Key("%(n)d"),
+    "[<n>] float":                      release + Key("%(n)d") + T(".0f"),
+    "zero-nut":                         release + Key('0'),
+    "zero-float":                       release + Key('0') + T(".0f"),
 
-           # Already part of DNS 
-           # "slash"                             /
-           # "star"                              *
-           # "space"
-           # "caret"                             ^
-           # To be added
-           # "mark"                             set-selection-mark
-           # "tark"                             toggle-selection-mark
-           # "jark"                             jump-to-prev-mark
-           # "mara":                            mark-paragraph 
-           # "mexp"                             mark-sexp (select this function)
-           # "boof"                             beg-of-prev-string
-           # "baif"                             beg-of-next-string           
-           # "moof"                             select-prev-string
-           # "maif"                             select-next-string
-           # "sup"                              <incremental serach up>
+    # Already part of DNS 
+    # "slash"                             /
+    # "star"                              *
+    # "space"
+    # "caret"                             ^
+    # To be added
+    # "mark"                             set-selection-mark
+    # "tark"                             toggle-selection-mark
+    # "jark"                             jump-to-prev-mark
+    # "mara":                            mark-paragraph 
+    # "mexp"                             mark-sexp (select this function)
+    # "boof"                             beg-of-prev-string
+    # "baif"                             beg-of-next-string           
+    # "moof"                             select-prev-string
+    # "maif"                             select-next-string
+    # "sup"                              <incremental serach up>
 
-           # "snap [<n>]"                        go to beginning of line X
-           # "jesp"                             go to beginning a function
-           # "dword"                             delete this word
-           # "slam"
-           # "parallels"                        show parallels
-
-          }
+    # "snap [<n>]"                        go to beginning of line X
+    # "jesp"                             go to beginning a function
+    # "dword"                             delete this word
+    # "slam"
+    # "parallels"                        show parallels
+}
 
 
 #---------------------------------------------------------------------------
