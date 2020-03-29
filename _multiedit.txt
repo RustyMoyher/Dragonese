@@ -339,3 +339,10 @@ def format_upper_score(dictation):
     text = str(dictation)
     words = [word.upper() for word in text.split(" ")]
     return "_".join(words)
+
+# Format: WRSomeWords
+def format_dubber(dictation):
+    """ dubber <dictation> """
+    text = str(dictation)
+    words = [word.capitalize() for word in text.split(" ")]
+    return "WR" + "".join(words)
